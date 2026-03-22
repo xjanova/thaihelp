@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchNearbyStations, detectBrand, calculateDistance } from '@/lib/places';
+import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
 import type { GasStation, StationReport } from '@/types';
 
 // In-memory store for reports (replace with DB later)
 const reportsStore: StationReport[] = [];
 
 export async function GET(request: NextRequest) {
+  // Rate limit: 20 requests per minute per IP
+  const ip = getRateLimitKey(request);
+  const limit = rateLimit(`stations-get:${ip}`, 20, 60000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'คำขอมากเกินไป กรุณารอสักครู่', retryAfterMs: limit.retryAfterMs },
+      { status: 429 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get('lat') || '13.7563');
     const lng = parseFloat(searchParams.get('lng') || '100.5018');
-    // Clamp radius between 500 m and 50 km to prevent abuse
-    const radius = Math.min(Math.max(parseInt(searchParams.get('radius') || '') || 10000, 500), 50000);
+    // Clamp radius between 500 m and 100 km
+    const radius = Math.min(Math.max(parseInt(searchParams.get('radius') || '') || 10000, 500), 100000);
 
     // Fetch from Google Places
     const places = await searchNearbyStations(lat, lng, radius);
@@ -58,6 +69,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 reports per minute per IP
+  const ip = getRateLimitKey(request);
+  const limit = rateLimit(`stations-post:${ip}`, 5, 60000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'รายงานบ่อยเกินไป กรุณารอสักครู่' },
+      { status: 429 }
+    );
+  }
+
   try {
     const body: StationReport = await request.json();
     const { placeId, stationName, reporterName, fuelReports, note, latitude, longitude, reporterEmail } = body;

@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { StationCard } from '@/components/stations/StationCard';
 import { ReportModal } from '@/components/stations/ReportModal';
 import { StationHero } from '@/components/stations/StationHero';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { RefreshCw, MapPin, Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
+import { RefreshCw, MapPin, Search, SlidersHorizontal, Fuel as FuelIcon } from 'lucide-react';
 import { DemoBanner } from '@/components/ui/DemoBanner';
-import type { GasStation } from '@/types';
+import { FUEL_TYPES, type GasStation, type FuelType } from '@/types';
 
 export default function StationsPage() {
   const { position, loading: geoLoading } = useGeolocation();
@@ -21,15 +22,36 @@ export default function StationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStations = useCallback(async () => {
+  // Radius slider (km) — default 10km
+  const [radiusKm, setRadiusKm] = useState(10);
+  const debouncedRadius = useDebounce(radiusKm, 500);
+
+  // Fuel type filter
+  const [fuelFilter, setFuelFilter] = useState<FuelType | ''>('');
+
+  // Last fetch timestamp for anti-spam
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+
+  const fetchStations = useCallback(async (radius?: number) => {
+    // Anti-spam: minimum 3 seconds between fetches
+    const now = Date.now();
+    if (now - lastFetchTime < 3000 && lastFetchTime > 0) return;
+    setLastFetchTime(now);
+
     try {
       setRefreshing(true);
+      const r = (radius || debouncedRadius) * 1000; // convert km to meters
       const res = await fetch(
-        `/api/stations?lat=${position.lat}&lng=${position.lng}&radius=15000`
+        `/api/stations?lat=${position.lat}&lng=${position.lng}&radius=${r}`
       );
+      if (res.status === 429) {
+        setError('คำขอมากเกินไป กรุณารอสักครู่');
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setStations(data.data);
+        setError(null);
       } else {
         setError(data.error);
       }
@@ -39,13 +61,11 @@ export default function StationsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [position]);
+  }, [position, debouncedRadius, lastFetchTime]);
 
   useEffect(() => {
-    if (!geoLoading) {
-      fetchStations();
-    }
-  }, [geoLoading, fetchStations]);
+    if (!geoLoading) fetchStations();
+  }, [geoLoading, debouncedRadius]);
 
   const handleReportSubmit = async () => {
     setShowReport(false);
@@ -53,13 +73,31 @@ export default function StationsPage() {
     await fetchStations();
   };
 
-  const filteredStations = stations.filter((s) =>
-    searchQuery
-      ? s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.vicinity.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.brand && s.brand.toLowerCase().includes(searchQuery.toLowerCase()))
-      : true
-  );
+  // Filter stations by search + fuel type
+  const filteredStations = useMemo(() => {
+    let result = stations;
+
+    // Text search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.vicinity.toLowerCase().includes(q) ||
+        (s.brand && s.brand.toLowerCase().includes(q))
+      );
+    }
+
+    // Fuel type filter — show only stations that have this fuel available
+    if (fuelFilter) {
+      result = result.filter((s) => {
+        if (!s.fuelReports || s.fuelReports.length === 0) return true; // No reports = unknown = show
+        const fuelReport = s.fuelReports.find((f) => f.fuelType === fuelFilter);
+        return !fuelReport || fuelReport.status !== 'empty'; // Show if not reported empty
+      });
+    }
+
+    return result;
+  }, [stations, searchQuery, fuelFilter]);
 
   const stationsWithReports = filteredStations.filter((s) => s.totalReports && s.totalReports > 0);
   const stationsNoReports = filteredStations.filter((s) => !s.totalReports || s.totalReports === 0);
@@ -69,16 +107,15 @@ export default function StationsPage() {
       <Header />
 
       <main className="pt-14 pb-20">
-        {/* Hero Section */}
         <StationHero totalStations={stations.length} totalReports={stations.reduce((sum, s) => sum + (s.totalReports || 0), 0)} />
 
-        {/* Demo Banner — show when using mock data */}
-        <DemoBanner message="ปั๊มน้ำมันแสดงข้อมูลตัวอย่าง — ข้อมูลจริงจะแสดงเมื่อใส่ Google Maps API Key" />
+        <DemoBanner message="ปั๊มน้ำมันแสดงข้อมูลจริงจาก Google Places — รายงานน้ำมันเป็นตัวอย่าง (Demo)" />
 
-        {/* Search + Controls */}
+        {/* Controls */}
         <div className="sticky top-14 z-40 glass px-4 py-3">
           <div className="metal-divider mb-3" />
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-3">
+            {/* Search + Refresh */}
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -91,7 +128,7 @@ export default function StationsPage() {
                 />
               </div>
               <button
-                onClick={fetchStations}
+                onClick={() => fetchStations()}
                 disabled={refreshing}
                 className="metal-btn px-3 rounded-xl text-slate-400 hover:text-orange-400 disabled:opacity-50"
                 title="รีเฟรช"
@@ -99,9 +136,55 @@ export default function StationsPage() {
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+
+            {/* Radius Slider */}
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal className="w-4 h-4 text-blue-400 shrink-0" />
+              <div className="flex-1">
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-orange-500"
+                />
+              </div>
+              <span className="text-xs font-bold text-orange-400 w-16 text-right">{radiusKm} km</span>
+            </div>
+
+            {/* Fuel Type Filter */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <FuelIcon className="w-4 h-4 text-orange-400 shrink-0" />
+              <button
+                onClick={() => setFuelFilter('')}
+                className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
+                  !fuelFilter
+                    ? 'metal-btn-accent text-white border-orange-500/30'
+                    : 'metal-btn text-slate-400 border-slate-700/50'
+                }`}
+              >
+                ทั้งหมด
+              </button>
+              {FUEL_TYPES.slice(0, 6).map((fuel) => (
+                <button
+                  key={fuel.key}
+                  onClick={() => setFuelFilter(fuelFilter === fuel.key ? '' : fuel.key)}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
+                    fuelFilter === fuel.key
+                      ? 'metal-btn-blue text-white border-blue-500/30'
+                      : 'metal-btn text-slate-400 border-slate-700/50'
+                  }`}
+                >
+                  {fuel.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Info */}
+            <div className="flex items-center gap-2 text-xs text-slate-500">
               <MapPin className="w-3 h-3" />
-              <span>แสดงปั๊มในรัศมี 15 กม. จากตำแหน่งของคุณ</span>
+              <span>รัศมี {radiusKm} กม. จากตำแหน่งของคุณ</span>
               <span className="ml-auto text-slate-600">{filteredStations.length} ปั๊ม</span>
             </div>
           </div>
@@ -120,21 +203,15 @@ export default function StationsPage() {
 
         {/* Error */}
         {error && !loading && (
-          <div className="mx-4 mt-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-            <p className="text-red-400">{error}</p>
-            <button
-              onClick={fetchStations}
-              className="mt-2 text-sm text-orange-400 hover:underline"
-            >
-              ลองใหม่
-            </button>
+          <div className="mx-4 mt-6 metal-panel rounded-xl p-4 text-center border-red-500/15">
+            <p className="text-red-400 text-sm">{error}</p>
+            <button onClick={() => fetchStations()} className="mt-2 text-xs text-orange-400 hover:underline">ลองใหม่</button>
           </div>
         )}
 
         {/* Station List */}
         {!loading && (
           <div className="max-w-2xl mx-auto px-4 mt-4 space-y-6">
-            {/* Stations with reports first */}
             {stationsWithReports.length > 0 && (
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-orange-400 mb-3 px-1">
@@ -142,20 +219,13 @@ export default function StationsPage() {
                 </h3>
                 <div className="space-y-3">
                   {stationsWithReports.map((station) => (
-                    <StationCard
-                      key={station.place_id}
-                      station={station}
-                      onReport={() => {
-                        setSelectedStation(station);
-                        setShowReport(true);
-                      }}
-                    />
+                    <StationCard key={station.place_id} station={station}
+                      onReport={() => { setSelectedStation(station); setShowReport(true); }} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Stations without reports */}
             {stationsNoReports.length > 0 && (
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 px-1">
@@ -163,14 +233,8 @@ export default function StationsPage() {
                 </h3>
                 <div className="space-y-3">
                   {stationsNoReports.map((station) => (
-                    <StationCard
-                      key={station.place_id}
-                      station={station}
-                      onReport={() => {
-                        setSelectedStation(station);
-                        setShowReport(true);
-                      }}
-                    />
+                    <StationCard key={station.place_id} station={station}
+                      onReport={() => { setSelectedStation(station); setShowReport(true); }} />
                   ))}
                 </div>
               </div>
@@ -178,23 +242,18 @@ export default function StationsPage() {
 
             {filteredStations.length === 0 && !loading && (
               <div className="text-center py-12 text-slate-500">
-                <p>ไม่พบปั๊มน้ำมันที่ตรงกับการค้นหา</p>
+                <p>ไม่พบปั๊มน้ำมัน{fuelFilter ? ` ที่มี${FUEL_TYPES.find(f => f.key === fuelFilter)?.label}` : ''}</p>
+                <p className="text-xs mt-1">ลองขยายรัศมีหรือเปลี่ยนตัวกรอง</p>
               </div>
             )}
           </div>
         )}
       </main>
 
-      {/* Report Modal */}
       {showReport && selectedStation && (
-        <ReportModal
-          station={selectedStation}
-          onClose={() => {
-            setShowReport(false);
-            setSelectedStation(null);
-          }}
-          onSubmit={handleReportSubmit}
-        />
+        <ReportModal station={selectedStation}
+          onClose={() => { setShowReport(false); setSelectedStation(null); }}
+          onSubmit={handleReportSubmit} />
       )}
 
       <BottomNav />

@@ -22,15 +22,13 @@ function generateToken(): string {
 // In-memory token store (replace with DB/Redis in production)
 const tokenStore = new Map<string, { expires: number }>();
 
-// Periodically clean up expired tokens to prevent unbounded memory growth
-setInterval(() => {
+// Lazy cleanup — runs inside validateToken instead of module-level setInterval
+function cleanupExpired() {
   const now = Date.now();
   tokenStore.forEach((session, token) => {
-    if (now > session.expires) {
-      tokenStore.delete(token);
-    }
+    if (now > session.expires) tokenStore.delete(token);
   });
-}, CLEANUP_INTERVAL);
+}
 
 export function validateCredentials(username: string, password: string): boolean {
   // NOTE: This is a plaintext comparison — acceptable for MVP.
@@ -48,6 +46,9 @@ export function createSession(): string {
 }
 
 export function validateToken(token: string): boolean {
+  // Piggyback cleanup on validation calls (no module-level timer)
+  if (tokenStore.size > 10) cleanupExpired();
+
   const session = tokenStore.get(token);
   if (!session) return false;
   if (Date.now() > session.expires) {

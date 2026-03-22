@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
 import type { Incident, CreateIncidentInput, IncidentCategory } from '@/types';
 
 const VALID_CATEGORIES: IncidentCategory[] = ['accident', 'flood', 'roadblock', 'checkpoint', 'construction', 'other'];
@@ -76,6 +77,12 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = getRateLimitKey(request);
+  const limit = rateLimit(`incidents-post:${ip}`, 5, 60000);
+  if (!limit.allowed) {
+    return NextResponse.json({ success: false, error: 'แจ้งเหตุบ่อยเกินไป กรุณารอสักครู่' }, { status: 429 });
+  }
+
   try {
     const body: CreateIncidentInput = await request.json();
     const { category, title, description, latitude, longitude, imageUrl } = body;
