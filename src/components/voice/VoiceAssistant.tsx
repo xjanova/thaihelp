@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Mic, MicOff, Volume2, X, HelpCircle, Navigation, Fuel, AlertTriangle } from 'lucide-react';
 import { useSpeech } from '@/hooks/useSpeech';
 import { matchCommand, getVoiceResponse, VOICE_COMMANDS } from '@/lib/voice-commands';
+import { NongYingAvatar } from './NongYingAvatar';
 import { useRouter } from 'next/navigation';
 
 interface VoiceAssistantProps {
@@ -116,11 +117,14 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
       {/* Voice Panel */}
       {showPanel && (
         <div className="fixed bottom-36 right-4 z-50 w-72 metal-panel rounded-2xl overflow-hidden animate-in slide-in-from-bottom-2">
-          {/* Header */}
+          {/* Header with Avatar */}
           <div className="flex items-center justify-between p-3 border-b border-slate-800/50">
             <div className="flex items-center gap-2">
-              <Mic className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-bold text-chrome">น้องหญิง AI</span>
+              <NongYingAvatar size={32} isSpeaking={isSpeaking} isListening={isListening} />
+              <div>
+                <span className="text-xs font-bold text-chrome">น้องหญิง</span>
+                <p className="text-[9px] text-slate-500">AI ผู้ช่วยนักเดินทาง</p>
+              </div>
             </div>
             <div className="flex gap-1">
               <button onClick={() => setShowHelp(!showHelp)} className="p-1 text-slate-500 hover:text-blue-400">

@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { Send, Mic, Volume2, Bot, User } from 'lucide-react';
+import { Send, Mic, Volume2, User } from 'lucide-react';
 import { useSpeech } from '@/hooks/useSpeech';
+import { NongYingAvatar } from '@/components/voice/NongYingAvatar';
 import type { ChatMessage } from '@/types';
 
 export default function ChatPage() {
@@ -18,7 +19,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  const { isListening, transcript, listen, stopListening, sayText } = useSpeech();
+  const { isListening, isSpeaking, transcript, listen, stopListening, sayText } = useSpeech();
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => { if (transcript && !isListening) setInput(transcript); }, [transcript, isListening]);
@@ -57,14 +58,12 @@ export default function ChatPage() {
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
               {/* Avatar */}
-              <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${
-                msg.role === 'assistant'
-                  ? 'bg-gradient-to-br from-cyan-500/20 to-cyan-600/5 border border-cyan-500/20'
-                  : 'bg-gradient-to-br from-orange-500/20 to-orange-600/5 border border-orange-500/20'
-              }`}>
+              <div className="shrink-0">
                 {msg.role === 'assistant'
-                  ? <Bot className="w-4 h-4 text-cyan-400" />
-                  : <User className="w-4 h-4 text-orange-400" />
+                  ? <NongYingAvatar size={32} isSpeaking={isSpeaking} />
+                  : <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-orange-500/20 to-orange-600/5 border border-orange-500/20">
+                      <User className="w-4 h-4 text-orange-400" />
+                    </div>
                 }
               </div>
 
@@ -88,9 +87,7 @@ export default function ChatPage() {
 
           {loading && (
             <div className="flex gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/5 border border-cyan-500/20 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-cyan-400" />
-              </div>
+              <NongYingAvatar size={32} isSpeaking={true} />
               <div className="metal-panel rounded-2xl px-4 py-3">
                 <div className="flex gap-1.5">
                   <div className="w-2 h-2 bg-cyan-500/40 rounded-full animate-bounce" />
