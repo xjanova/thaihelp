@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { MapView } from '@/components/map/MapView';
 import { MapFilters, type MapFilter } from '@/components/map/MapFilters';
 import { ReportModal } from '@/components/stations/ReportModal';
+import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMapData } from '@/hooks/useMapData';
@@ -114,24 +115,14 @@ export default function HomePage() {
             />
 
             {/* FABs */}
-            <div className="absolute bottom-6 right-4 flex flex-col gap-3 z-10">
-              <button
-                onClick={isListening ? stopListening : listen}
-                className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
-                  isListening
-                    ? 'bg-red-500 animate-pulse scale-110'
-                    : 'bg-orange-500 hover:bg-orange-600'
-                }`}
-              >
-                <Mic className="w-6 h-6 text-white" />
-              </button>
-
+            {/* Report FAB */}
+            <div className="absolute bottom-6 left-4 z-10">
               {user && (
                 <Link
                   href="/report"
-                  className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 shadow-lg flex items-center justify-center transition-colors"
+                  className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 shadow-lg flex items-center justify-center transition-colors"
                 >
-                  <Plus className="w-7 h-7 text-white" />
+                  <Plus className="w-6 h-6 text-white" />
                 </Link>
               )}
             </div>
@@ -170,6 +161,9 @@ export default function HomePage() {
           }}
         />
       )}
+
+      {/* Voice Assistant — always visible */}
+      {!showWelcome && <VoiceAssistant stations={stations} />}
 
       <BottomNav />
     </div>

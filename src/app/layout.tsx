@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { PWAProvider } from '@/components/pwa/PWAProvider';
 import { PermissionGate } from '@/components/pwa/PermissionGate';
+import { Tutorial } from '@/components/onboarding/Tutorial';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({
         <PWAProvider>
           <PermissionGate>
             {children}
+            <Tutorial />
           </PermissionGate>
         </PWAProvider>
       </body>
