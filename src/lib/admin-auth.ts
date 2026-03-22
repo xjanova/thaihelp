@@ -10,9 +10,10 @@ const CLEANUP_INTERVAL = 60 * 60 * 1000; // Clean expired tokens every hour
 // TODO: Replace plaintext comparison with bcrypt before going to production.
 const isDev = process.env.NODE_ENV !== 'production';
 
-const ADMIN_USER = process.env.ADMIN_USERNAME ?? (isDev ? 'admin' : (() => { throw new Error('ADMIN_USERNAME env var is required in production'); })());
-const ADMIN_PASS = process.env.ADMIN_PASSWORD ?? (isDev ? 'ThaiHelp@2026!' : (() => { throw new Error('ADMIN_PASSWORD env var is required in production'); })());
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? (isDev ? 'thaihelp-secret-key-change-me' : (() => { throw new Error('ADMIN_SECRET env var is required in production'); })());
+// Defaults for initial setup — change via .env.local on server
+const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'ThaiHelp@2026!';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'xman-thaihelp-2026';
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
