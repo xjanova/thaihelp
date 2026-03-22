@@ -1,22 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query, execute } from '@/lib/db';
 import type { Incident, CreateIncidentInput } from '@/types';
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const lat = parseFloat(searchParams.get('lat') || '13.7563');
-    const lng = parseFloat(searchParams.get('lng') || '100.5018');
-    const radius = parseFloat(searchParams.get('radius') || '10'); // km
+// In-memory store (replace with DB later)
+const incidentsStore: Incident[] = [
+  {
+    id: 1,
+    userId: 'demo',
+    category: 'accident',
+    title: 'รถชน 3 คัน',
+    description: 'รถชนบริเวณแยก ทำให้รถติดมาก',
+    latitude: 13.7580,
+    longitude: 100.5680,
+    upvotes: 15,
+    isActive: true,
+    createdAt: new Date(Date.now() - 1800000),
+    expiresAt: new Date(Date.now() + 7200000),
+  },
+  {
+    id: 2,
+    userId: 'demo',
+    category: 'flood',
+    title: 'น้ำท่วมถนน',
+    description: 'น้ำท่วมสูงประมาณ 30 ซม.',
+    latitude: 13.7650,
+    longitude: 100.5550,
+    upvotes: 8,
+    isActive: true,
+    createdAt: new Date(Date.now() - 3600000),
+    expiresAt: new Date(Date.now() + 7200000),
+  },
+  {
+    id: 3,
+    userId: 'demo',
+    category: 'checkpoint',
+    title: 'จุดตรวจตำรวจ',
+    description: 'ตั้งจุดตรวจเอกสาร',
+    latitude: 13.7500,
+    longitude: 100.5750,
+    upvotes: 22,
+    isActive: true,
+    createdAt: new Date(Date.now() - 900000),
+    expiresAt: new Date(Date.now() + 10800000),
+  },
+  {
+    id: 4,
+    userId: 'demo',
+    category: 'roadblock',
+    title: 'ถนนปิดซ่อม',
+    description: 'ปิดถนนซ่อมท่อประปา',
+    latitude: 13.7720,
+    longitude: 100.5800,
+    upvotes: 5,
+    isActive: true,
+    createdAt: new Date(Date.now() - 5400000),
+    expiresAt: new Date(Date.now() + 14400000),
+  },
+];
 
-    const incidents = await query<Incident>(
-      `SELECT * FROM incidents
-       WHERE isActive = 1
-       AND expiresAt > GETDATE()
-       ORDER BY createdAt DESC`
+export async function GET() {
+  try {
+    const activeIncidents = incidentsStore.filter(
+      (i) => i.isActive && new Date(i.expiresAt).getTime() > Date.now()
     );
 
-    return NextResponse.json({ success: true, data: incidents });
+    return NextResponse.json({ success: true, data: activeIncidents });
   } catch (error) {
     console.error('GET /api/incidents error:', error);
     return NextResponse.json(
@@ -38,21 +85,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await execute(
-      `INSERT INTO incidents (userId, category, title, description, latitude, longitude, imageUrl, upvotes, isActive, createdAt, expiresAt)
-       VALUES (@userId, @category, @title, @description, @latitude, @longitude, @imageUrl, 0, 1, GETDATE(), DATEADD(HOUR, 4, GETDATE()))`,
-      {
-        userId: 'anonymous', // TODO: get from auth
-        category,
-        title,
-        description: description || '',
-        latitude,
-        longitude,
-        imageUrl: imageUrl || null,
-      }
-    );
+    const newIncident: Incident = {
+      id: Date.now(),
+      userId: 'anonymous',
+      category,
+      title,
+      description: description || '',
+      latitude,
+      longitude,
+      imageUrl,
+      upvotes: 0,
+      isActive: true,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 4 * 3600000), // 4 hours
+    };
 
-    return NextResponse.json({ success: true });
+    incidentsStore.push(newIncident);
+
+    // Keep store manageable
+    if (incidentsStore.length > 200) {
+      incidentsStore.splice(0, incidentsStore.length - 200);
+    }
+
+    return NextResponse.json({ success: true, data: newIncident });
   } catch (error) {
     console.error('POST /api/incidents error:', error);
     return NextResponse.json(

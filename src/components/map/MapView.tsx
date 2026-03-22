@@ -2,14 +2,29 @@
 
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import type { GasStation, Incident } from '@/types';
+import { StationMarker } from './StationMarker';
+import { IncidentMarker } from './IncidentMarker';
 
 const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 interface MapViewProps {
+  stations?: GasStation[];
+  incidents?: Incident[];
+  showStations?: boolean;
+  showIncidents?: boolean;
+  onStationReport?: (station: GasStation) => void;
   children?: React.ReactNode;
 }
 
-export function MapView({ children }: MapViewProps) {
+export function MapView({
+  stations = [],
+  incidents = [],
+  showStations = true,
+  showIncidents = true,
+  onStationReport,
+  children,
+}: MapViewProps) {
   const { position, loading } = useGeolocation();
 
   if (!GOOGLE_MAPS_KEY) {
@@ -39,12 +54,32 @@ export function MapView({ children }: MapViewProps) {
         streetViewControl={false}
         fullscreenControl={false}
       >
-        {/* Current location marker */}
+        {/* Current location */}
         {!loading && (
           <AdvancedMarker position={position}>
-            <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg animate-pulse" />
+            <div className="relative">
+              <div className="w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg" />
+              <div className="absolute -inset-2 bg-blue-500/20 rounded-full animate-ping" />
+            </div>
           </AdvancedMarker>
         )}
+
+        {/* Station markers */}
+        {showStations &&
+          stations.map((station) => (
+            <StationMarker
+              key={station.place_id}
+              station={station}
+              onReport={onStationReport || (() => {})}
+            />
+          ))}
+
+        {/* Incident markers */}
+        {showIncidents &&
+          incidents.map((incident) => (
+            <IncidentMarker key={incident.id} incident={incident} />
+          ))}
+
         {children}
       </Map>
     </APIProvider>
