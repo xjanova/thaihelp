@@ -9,7 +9,12 @@ function loadVoices(): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   const voices = window.speechSynthesis.getVoices();
   if (voices.length > 0) {
-    thaiVoice = voices.find((v) => v.lang.startsWith('th')) || null;
+    // Prefer female/child Thai voice for "น้องหญิง" character
+    const thaiVoices = voices.filter((v) => v.lang.startsWith('th'));
+    const femaleVoice = thaiVoices.find(
+      (v) => v.name.toLowerCase().includes('female') || v.name.includes('หญิง') || v.name.includes('woman')
+    );
+    thaiVoice = femaleVoice || thaiVoices[0] || null;
     voicesLoaded = true;
   }
 }
@@ -33,8 +38,8 @@ export function speak(text: string, onEnd?: () => void): void {
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'th-TH';
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
+  utterance.rate = 1.05;  // Slightly faster — น้องหญิง style
+  utterance.pitch = 1.4;  // Higher pitch — child/girl voice
 
   if (thaiVoice) {
     utterance.voice = thaiVoice;

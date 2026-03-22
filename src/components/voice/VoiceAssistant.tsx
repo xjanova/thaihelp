@@ -31,7 +31,7 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
     const cmd = matchCommand(text);
 
     if (!cmd) {
-      const response = 'ไม่เข้าใจคำสั่ง ลองพูดว่า หาปั๊ม, รายงาน, แจ้งเหตุ, หรือ ช่วย';
+      const response = 'อุ๊ย น้องหญิงไม่เข้าใจอ่ะค่ะ ลองพูดว่า หาปั๊ม, รายงาน, แจ้งเหตุ, หรือ ช่วย นะคะ!';
       setLastResponse(response);
       sayText(response);
       setProcessing(false);
@@ -120,7 +120,7 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
           <div className="flex items-center justify-between p-3 border-b border-slate-800/50">
             <div className="flex items-center gap-2">
               <Mic className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-bold text-chrome">สั่งด้วยเสียง</span>
+              <span className="text-xs font-bold text-chrome">น้องหญิง AI</span>
             </div>
             <div className="flex gap-1">
               <button onClick={() => setShowHelp(!showHelp)} className="p-1 text-slate-500 hover:text-blue-400">

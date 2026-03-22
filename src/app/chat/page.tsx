@@ -11,7 +11,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1', role: 'assistant',
-      content: 'สวัสดีครับ! ผมคือ ThaiHelp AI พร้อมช่วยเหลือเรื่องการเดินทาง สอบถามเส้นทาง แจ้งเหตุ หรือรายงานปั๊มน้ำมันได้เลยครับ',
+      content: 'สวัสดีค่ะ! หนูชื่อน้องหญิง เป็น AI ประจำแอป ThaiHelp จ้า 🎀 พี่ถามเรื่องปั๊มน้ำมัน เส้นทาง แจ้งเหตุ หรือจะคุยเรื่องการเดินทางก็ได้นะคะ หนูช่วยได้หมดเลย!',
       timestamp: new Date(),
     },
   ]);
