@@ -72,7 +72,8 @@ export default function StationsPage() {
         <StationHero totalStations={stations.length} totalReports={stations.reduce((sum, s) => sum + (s.totalReports || 0), 0)} />
 
         {/* Search + Controls */}
-        <div className="sticky top-14 z-40 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 px-4 py-3">
+        <div className="sticky top-14 z-40 glass px-4 py-3">
+          <div className="metal-divider mb-3" />
           <div className="max-w-2xl mx-auto">
             <div className="flex gap-2">
               <div className="flex-1 relative">
@@ -82,13 +83,13 @@ export default function StationsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาปั๊ม เช่น PTT, Shell..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full metal-input rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none"
                 />
               </div>
               <button
                 onClick={fetchStations}
                 disabled={refreshing}
-                className="px-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-400 hover:text-orange-400 hover:border-orange-500/50 transition-all disabled:opacity-50"
+                className="metal-btn px-3 rounded-xl text-slate-400 hover:text-orange-400 disabled:opacity-50"
                 title="รีเฟรช"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
