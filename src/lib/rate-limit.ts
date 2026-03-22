@@ -1,20 +1,31 @@
 // Simple in-memory rate limiter for API routes
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
+// Periodic cleanup every 5 minutes to prevent memory leak
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+
+function cleanup() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+  lastCleanup = now;
+
+  const keysToDelete: string[] = [];
+  rateLimitMap.forEach((v, k) => {
+    if (now > v.resetAt) keysToDelete.push(k);
+  });
+  keysToDelete.forEach((k) => rateLimitMap.delete(k));
+}
+
 export function rateLimit(
   key: string,
   maxRequests: number = 10,
   windowMs: number = 60000 // 1 minute
 ): { allowed: boolean; remaining: number; retryAfterMs: number } {
+  cleanup();
+
   const now = Date.now();
   const entry = rateLimitMap.get(key);
-
-  // Clean old entries periodically
-  if (rateLimitMap.size > 1000) {
-    rateLimitMap.forEach((v, k) => {
-      if (now > v.resetAt) rateLimitMap.delete(k);
-    });
-  }
 
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });

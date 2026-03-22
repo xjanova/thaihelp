@@ -11,12 +11,15 @@ export function PermissionGate({ children }: { children: React.ReactNode }) {
   const [micStatus, setMicStatus] = useState<PermissionStatus>('prompt');
   const [showGate, setShowGate] = useState(false); // Start hidden, show after check
   const [requesting, setRequesting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Check existing permissions on mount
   useEffect(() => {
+    setMounted(true);
     const checkPermissions = async () => {
       // Check if already granted before (stored in localStorage)
-      const wasGranted = localStorage.getItem('thaihelp_permissions_granted');
+      let wasGranted: string | null = null;
+      try { wasGranted = localStorage.getItem('thaihelp_permissions_granted'); } catch { /* SSR safe */ }
       if (wasGranted === 'true') {
         setShowGate(false);
         // Still request GPS silently

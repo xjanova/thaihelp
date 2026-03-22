@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { startListening, speak, stopSpeaking, type SpeechRecognitionResult } from '@/lib/speech';
+import {
+  startListening,
+  speak,
+  stopSpeaking,
+  isSpeechSupported,
+  isRecognitionSupported,
+  type SpeechRecognitionResult,
+} from '@/lib/speech';
 
 export function useSpeech() {
   const [isListening, setIsListening] = useState(false);
@@ -11,6 +18,11 @@ export function useSpeech() {
   const stopRef = useRef<(() => void) | null>(null);
 
   const listen = useCallback(() => {
+    if (!isRecognitionSupported()) {
+      setError('เบราว์เซอร์ไม่รองรับการฟังเสียง');
+      return;
+    }
+
     setError(null);
     setTranscript('');
 
@@ -24,6 +36,10 @@ export function useSpeech() {
       (err: string) => {
         setError(err);
         setIsListening(false);
+      },
+      () => {
+        // onEnd — recognition stopped naturally
+        setIsListening(false);
       }
     );
 
@@ -31,21 +47,23 @@ export function useSpeech() {
       stopRef.current = stop;
       setIsListening(true);
     } else {
-      setError('Speech recognition not available');
+      setError('ไม่สามารถเปิดไมค์ได้');
     }
   }, []);
 
   const stopListening = useCallback(() => {
     stopRef.current?.();
+    stopRef.current = null;
     setIsListening(false);
   }, []);
 
   const sayText = useCallback((text: string) => {
+    if (!isSpeechSupported()) return;
     setIsSpeaking(true);
-    speak(text);
-    // Approximate end of speech
-    const duration = Math.max(2000, text.length * 80);
-    setTimeout(() => setIsSpeaking(false), duration);
+    speak(text, () => {
+      // onEnd callback — fires when speech actually finishes
+      setIsSpeaking(false);
+    });
   }, []);
 
   const stopTalking = useCallback(() => {
@@ -62,5 +80,7 @@ export function useSpeech() {
     stopListening,
     sayText,
     stopTalking,
+    speechSupported: typeof window !== 'undefined' && isSpeechSupported(),
+    recognitionSupported: typeof window !== 'undefined' && isRecognitionSupported(),
   };
 }

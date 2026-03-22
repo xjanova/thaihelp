@@ -1,22 +1,69 @@
 'use client';
 
-export function speak(text: string): void {
+// === Text-to-Speech ===
+
+let voicesLoaded = false;
+let thaiVoice: SpeechSynthesisVoice | null = null;
+
+function loadVoices(): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    thaiVoice = voices.find((v) => v.lang.startsWith('th')) || null;
+    voicesLoaded = true;
+  }
+}
+
+// Chrome requires onvoiceschanged event to load voices
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+export function speak(text: string, onEnd?: () => void): void {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
 
   window.speechSynthesis.cancel();
+
+  // Ensure voices are loaded
+  if (!voicesLoaded) loadVoices();
+
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'th-TH';
   utterance.rate = 1.0;
   utterance.pitch = 1.0;
 
-  // Try to find Thai voice
-  const voices = window.speechSynthesis.getVoices();
-  const thaiVoice = voices.find((v) => v.lang.startsWith('th'));
   if (thaiVoice) {
     utterance.voice = thaiVoice;
   }
 
+  utterance.onend = () => onEnd?.();
+  utterance.onerror = () => onEnd?.();
+
   window.speechSynthesis.speak(utterance);
+
+  // Chrome bug: speechSynthesis stops after ~15 seconds
+  // Workaround: resume periodically
+  const resumeInterval = setInterval(() => {
+    if (!window.speechSynthesis.speaking) {
+      clearInterval(resumeInterval);
+      return;
+    }
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 10000);
+
+  utterance.onend = () => {
+    clearInterval(resumeInterval);
+    onEnd?.();
+  };
+  utterance.onerror = () => {
+    clearInterval(resumeInterval);
+    onEnd?.();
+  };
 }
 
 export function stopSpeaking(): void {
@@ -24,30 +71,46 @@ export function stopSpeaking(): void {
   window.speechSynthesis.cancel();
 }
 
+export function isSpeechSupported(): boolean {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+}
+
+// === Speech Recognition ===
+
 export interface SpeechRecognitionResult {
   transcript: string;
   isFinal: boolean;
 }
 
+export function isRecognitionSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(
+    (window as unknown as Record<string, unknown>).SpeechRecognition ||
+    (window as unknown as Record<string, unknown>).webkitSpeechRecognition
+  );
+}
+
 export function startListening(
   onResult: (result: SpeechRecognitionResult) => void,
-  onError?: (error: string) => void
+  onError?: (error: string) => void,
+  onEnd?: () => void
 ): (() => void) | null {
   if (typeof window === 'undefined') return null;
 
-  const SpeechRecognition =
+  const SpeechRecognitionClass =
     (window as unknown as Record<string, unknown>).SpeechRecognition ||
     (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
 
-  if (!SpeechRecognition) {
+  if (!SpeechRecognitionClass) {
     onError?.('Speech recognition not supported');
     return null;
   }
 
-  const recognition = new (SpeechRecognition as new () => SpeechRecognition)();
+  const recognition = new (SpeechRecognitionClass as new () => SpeechRecognitionInstance)();
   recognition.lang = 'th-TH';
   recognition.continuous = false;
   recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
 
   recognition.onresult = (event: SpeechRecognitionEvent) => {
     const last = event.results[event.results.length - 1];
@@ -58,24 +121,38 @@ export function startListening(
   };
 
   recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-    onError?.(event.error);
+    // 'no-speech' and 'aborted' are not real errors
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      onError?.(event.error);
+    }
+  };
+
+  recognition.onend = () => {
+    onEnd?.();
   };
 
   recognition.start();
 
   return () => {
-    recognition.stop();
+    try {
+      recognition.stop();
+    } catch {
+      // already stopped
+    }
   };
 }
 
-interface SpeechRecognition extends EventTarget {
+// Type declarations for Web Speech API
+interface SpeechRecognitionInstance extends EventTarget {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   start(): void;
   stop(): void;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
 }
 
 interface SpeechRecognitionEvent extends Event {

@@ -23,7 +23,8 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
     if (transcript && !isListening && !processing) {
       processCommand(transcript);
     }
-  }, [transcript, isListening]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcript, isListening, processing]);
 
   const processCommand = useCallback((text: string) => {
     setProcessing(true);

@@ -1,6 +1,8 @@
 // Google Places API helper — server-side only
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+// Use GOOGLE_MAPS_SERVER_KEY for server-side calls (not exposed to client)
+// Falls back to NEXT_PUBLIC key if server key not set
+const API_KEY = process.env.GOOGLE_MAPS_SERVER_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 export interface PlaceResult {
   place_id: string;
