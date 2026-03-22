@@ -1,78 +1,91 @@
 import { NextResponse } from 'next/server';
-import { execute } from '@/lib/db';
+import { execute, query } from '@/lib/db';
 
-const CREATE_TABLES_SQL = [
-  `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'users')
-   CREATE TABLE users (
-     id NVARCHAR(128) PRIMARY KEY,
-     email NVARCHAR(255) NOT NULL,
-     displayName NVARCHAR(255),
-     photoURL NVARCHAR(500),
-     createdAt DATETIME2 DEFAULT GETDATE()
-   )`,
+const CREATE_TABLES = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nickname VARCHAR(100) NOT NULL,
+    email VARCHAR(255),
+    avatar_url VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_nickname (nickname)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-  `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'incidents')
-   CREATE TABLE incidents (
-     id INT IDENTITY(1,1) PRIMARY KEY,
-     userId NVARCHAR(128) NOT NULL,
-     category NVARCHAR(50) NOT NULL,
-     title NVARCHAR(255) NOT NULL,
-     description NVARCHAR(MAX),
-     latitude FLOAT NOT NULL,
-     longitude FLOAT NOT NULL,
-     imageUrl NVARCHAR(500),
-     upvotes INT DEFAULT 0,
-     isActive BIT DEFAULT 1,
-     createdAt DATETIME2 DEFAULT GETDATE(),
-     expiresAt DATETIME2
-   )`,
+  `CREATE TABLE IF NOT EXISTS incidents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    category ENUM('accident','flood','roadblock','checkpoint','construction','other') NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    latitude DOUBLE NOT NULL,
+    longitude DOUBLE NOT NULL,
+    image_url VARCHAR(500),
+    upvotes INT DEFAULT 0,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    INDEX idx_active (is_active, expires_at),
+    INDEX idx_location (latitude, longitude),
+    INDEX idx_category (category)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-  `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'gas_stations')
-   CREATE TABLE gas_stations (
-     id INT IDENTITY(1,1) PRIMARY KEY,
-     googlePlaceId NVARCHAR(255),
-     name NVARCHAR(255) NOT NULL,
-     latitude FLOAT NOT NULL,
-     longitude FLOAT NOT NULL,
-     address NVARCHAR(500),
-     status NVARCHAR(20) DEFAULT 'open',
-     reportCount INT DEFAULT 0,
-     lastReportAt DATETIME2
-   )`,
+  `CREATE TABLE IF NOT EXISTS station_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    place_id VARCHAR(255) NOT NULL,
+    station_name VARCHAR(255) NOT NULL,
+    reporter_name VARCHAR(100) NOT NULL,
+    reporter_email VARCHAR(255),
+    note TEXT,
+    latitude DOUBLE,
+    longitude DOUBLE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_place (place_id),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-  `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'station_reports')
-   CREATE TABLE station_reports (
-     id INT IDENTITY(1,1) PRIMARY KEY,
-     stationId INT NOT NULL,
-     userId NVARCHAR(128) NOT NULL,
-     status NVARCHAR(20) NOT NULL,
-     comment NVARCHAR(MAX),
-     createdAt DATETIME2 DEFAULT GETDATE()
-   )`,
+  `CREATE TABLE IF NOT EXISTS fuel_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    fuel_type ENUM('gasohol95','gasohol91','e20','e85','diesel','diesel_b7','premium_diesel','ngv','lpg') NOT NULL,
+    status ENUM('available','low','empty','unknown') NOT NULL DEFAULT 'unknown',
+    price DECIMAL(6,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_report (report_id),
+    INDEX idx_fuel_type (fuel_type),
+    FOREIGN KEY (report_id) REFERENCES station_reports(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
-  `IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'incident_votes')
-   CREATE TABLE incident_votes (
-     id INT IDENTITY(1,1) PRIMARY KEY,
-     incidentId INT NOT NULL,
-     userId NVARCHAR(128) NOT NULL,
-     createdAt DATETIME2 DEFAULT GETDATE(),
-     UNIQUE (incidentId, userId)
-   )`,
+  `CREATE TABLE IF NOT EXISTS incident_votes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    incident_id INT NOT NULL,
+    user_ip VARCHAR(45) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_vote (incident_id, user_ip),
+    FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 export async function POST() {
   try {
-    for (const sql of CREATE_TABLES_SQL) {
+    for (const sql of CREATE_TABLES) {
       await execute(sql);
     }
+
+    // Verify tables
+    const tables = await query(
+      'SHOW TABLES'
+    );
+    const tableNames = tables.map((t) => Object.values(t)[0]);
 
     return NextResponse.json({
       success: true,
       message: 'Database tables created successfully',
-      tables: ['users', 'incidents', 'gas_stations', 'station_reports', 'incident_votes'],
+      tables: tableNames,
     });
   } catch (error) {
-    console.error('Database setup error:', error);
+    console.error('DB setup error:', error);
     return NextResponse.json(
       { success: false, error: String(error) },
       { status: 500 }

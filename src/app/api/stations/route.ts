@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchNearbyStations, detectBrand, calculateDistance } from '@/lib/places';
+import { query, execute } from '@/lib/db';
 import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
-import type { GasStation, StationReport } from '@/types';
-
-// In-memory store for reports (replace with DB later)
-const reportsStore: StationReport[] = [];
+import type { GasStation, FuelReport } from '@/types';
 
 export async function GET(request: NextRequest) {
-  // Rate limit: 20 requests per minute per IP
   const ip = getRateLimitKey(request);
   const limit = rateLimit(`stations-get:${ip}`, 20, 60000);
   if (!limit.allowed) {
     return NextResponse.json(
-      { success: false, error: 'คำขอมากเกินไป กรุณารอสักครู่', retryAfterMs: limit.retryAfterMs },
+      { success: false, error: 'คำขอมากเกินไป กรุณารอสักครู่' },
       { status: 429 }
     );
   }
@@ -21,19 +18,43 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get('lat') || '13.7563');
     const lng = parseFloat(searchParams.get('lng') || '100.5018');
-    // Clamp radius between 500 m and 100 km
     const radius = Math.min(Math.max(parseInt(searchParams.get('radius') || '') || 10000, 500), 100000);
 
     // Fetch from Google Places
     const places = await searchNearbyStations(lat, lng, radius);
 
-    // Map to our format + merge with community reports
-    const stations: GasStation[] = places.map((place) => {
-      const placeReports = reportsStore
-        .filter((r) => r.placeId === place.place_id)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Get recent reports from MySQL (last 6 hours)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let dbReports: any[] = [];
+    try {
+      dbReports = await query(
+        `SELECT sr.place_id, fr.fuel_type, fr.status, fr.price, sr.reporter_name, sr.created_at
+         FROM station_reports sr
+         JOIN fuel_reports fr ON fr.report_id = sr.id
+         WHERE sr.created_at > DATE_SUB(NOW(), INTERVAL 6 HOUR)
+         ORDER BY sr.created_at DESC`
+      );
+    } catch {
+      // DB not ready yet — continue with empty reports
+    }
 
-      const latestReport = placeReports[0];
+    // Map to our format + merge with DB reports
+    const stations: GasStation[] = places.map((place) => {
+      const placeReports = dbReports.filter((r) => r.place_id === place.place_id);
+      const fuelReports: FuelReport[] = [];
+      const seenFuels = new Set<string>();
+
+      // Use latest report per fuel type
+      for (const r of placeReports) {
+        if (!seenFuels.has(r.fuel_type)) {
+          seenFuels.add(r.fuel_type);
+          fuelReports.push({
+            fuelType: r.fuel_type as FuelReport['fuelType'],
+            status: r.status as FuelReport['status'],
+            price: r.price || undefined,
+          });
+        }
+      }
 
       return {
         place_id: place.place_id,
@@ -46,173 +67,88 @@ export async function GET(request: NextRequest) {
         opening_hours: place.opening_hours,
         distance: calculateDistance(lat, lng, place.geometry.location.lat, place.geometry.location.lng),
         brand: detectBrand(place.name),
-        fuelReports: latestReport?.fuelReports || [],
-        totalReports: placeReports.length,
-        lastReportAt: latestReport?.createdAt || undefined,
+        fuelReports,
+        totalReports: new Set(placeReports.map((r) => r.created_at)).size,
+        lastReportAt: placeReports[0]?.created_at || undefined,
       };
     });
 
-    // Sort by distance
     stations.sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
     return NextResponse.json({ success: true, data: stations });
   } catch (error) {
     console.error('GET /api/stations error:', error);
-
-    // Return mock data if Google API fails
-    return NextResponse.json({
-      success: true,
-      data: getMockStations(),
-      mock: true,
-    });
+    return NextResponse.json({ success: true, data: getMockStations(), mock: true });
   }
 }
 
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 reports per minute per IP
   const ip = getRateLimitKey(request);
   const limit = rateLimit(`stations-post:${ip}`, 5, 60000);
   if (!limit.allowed) {
-    return NextResponse.json(
-      { success: false, error: 'รายงานบ่อยเกินไป กรุณารอสักครู่' },
-      { status: 429 }
-    );
+    return NextResponse.json({ success: false, error: 'รายงานบ่อยเกินไป กรุณารอสักครู่' }, { status: 429 });
   }
 
   try {
-    const body: StationReport = await request.json();
+    const body = await request.json();
     const { placeId, stationName, reporterName, fuelReports, note, latitude, longitude, reporterEmail } = body;
 
     if (!placeId || !stationName || !reporterName || !fuelReports?.length) {
-      return NextResponse.json(
-        { success: false, error: 'กรุณากรอกข้อมูลให้ครบ' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'กรุณากรอกข้อมูลให้ครบ' }, { status: 400 });
     }
-
-    // Input length validation
     if (typeof stationName === 'string' && stationName.length > 255) {
-      return NextResponse.json({ success: false, error: 'stationName ยาวเกินไป (สูงสุด 255 ตัวอักษร)' }, { status: 400 });
-    }
-    if (typeof reporterName === 'string' && reporterName.length > 100) {
-      return NextResponse.json({ success: false, error: 'reporterName ยาวเกินไป (สูงสุด 100 ตัวอักษร)' }, { status: 400 });
-    }
-    if (note && typeof note === 'string' && note.length > 500) {
-      return NextResponse.json({ success: false, error: 'note ยาวเกินไป (สูงสุด 500 ตัวอักษร)' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'ชื่อปั๊มยาวเกินไป' }, { status: 400 });
     }
     if (Array.isArray(fuelReports) && fuelReports.length > 15) {
-      return NextResponse.json({ success: false, error: 'fuelReports มีรายการมากเกินไป (สูงสุด 15 รายการ)' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fuelReports มากเกินไป' }, { status: 400 });
     }
 
-    const report: StationReport = {
-      id: Date.now(),
-      placeId,
-      stationName,
-      reporterName,
-      reporterEmail: reporterEmail || undefined,
-      fuelReports,
-      note: note || '',
-      latitude,
-      longitude,
-      createdAt: new Date().toISOString(),
-    };
+    // Insert station report
+    const result = await execute(
+      `INSERT INTO station_reports (place_id, station_name, reporter_name, reporter_email, note, latitude, longitude)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [placeId, stationName, reporterName, reporterEmail || null, note || '', latitude || 0, longitude || 0]
+    );
 
-    reportsStore.push(report);
+    const reportId = result.insertId;
 
-    // Keep only last 500 reports in memory
-    if (reportsStore.length > 500) {
-      reportsStore.splice(0, reportsStore.length - 500);
+    // Insert fuel reports
+    for (const fuel of fuelReports) {
+      await execute(
+        `INSERT INTO fuel_reports (report_id, fuel_type, status, price) VALUES (?, ?, ?, ?)`,
+        [reportId, fuel.fuelType, fuel.status, fuel.price || null]
+      );
     }
 
     return NextResponse.json({
       success: true,
       message: 'ขอบคุณที่รายงาน! ข้อมูลจะแสดงให้เพื่อนร่วมทางทราบ',
-      report,
+      reportId,
     });
   } catch (error) {
     console.error('POST /api/stations error:', error);
-    return NextResponse.json(
-      { success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่' }, { status: 500 });
   }
 }
 
 function getMockStations(): GasStation[] {
   return [
     {
-      place_id: 'mock_1',
-      name: 'PTT สาขาพระราม 9',
-      vicinity: 'ถนนพระราม 9 แขวงห้วยขวาง',
-      latitude: 13.7570,
-      longitude: 100.5670,
-      rating: 4.2,
-      user_ratings_total: 156,
-      opening_hours: { open_now: true },
-      distance: 0.5,
-      brand: 'PTT',
+      place_id: 'mock_1', name: 'PTT สาขาพระราม 9', vicinity: 'ถนนพระราม 9',
+      latitude: 13.757, longitude: 100.567, rating: 4.2, user_ratings_total: 156,
+      opening_hours: { open_now: true }, distance: 0.5, brand: 'PTT',
       fuelReports: [
         { fuelType: 'gasohol95', status: 'available', price: 36.44 },
-        { fuelType: 'gasohol91', status: 'available', price: 29.18 },
         { fuelType: 'diesel', status: 'low', price: 29.94 },
-        { fuelType: 'e20', status: 'available', price: 33.14 },
       ],
-      totalReports: 12,
-      lastReportAt: new Date(Date.now() - 1800000).toISOString(),
+      totalReports: 12, lastReportAt: new Date(Date.now() - 1800000).toISOString(),
     },
     {
-      place_id: 'mock_2',
-      name: 'Shell ลาดพร้าว 71',
-      vicinity: 'ถนนลาดพร้าว แขวงสะพานสอง',
-      latitude: 13.7890,
-      longitude: 100.5890,
-      rating: 4.0,
-      user_ratings_total: 89,
-      opening_hours: { open_now: true },
-      distance: 2.3,
-      brand: 'Shell',
-      fuelReports: [
-        { fuelType: 'gasohol95', status: 'empty' },
-        { fuelType: 'diesel', status: 'available', price: 29.94 },
-        { fuelType: 'premium_diesel', status: 'available', price: 36.36 },
-      ],
-      totalReports: 8,
-      lastReportAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      place_id: 'mock_3',
-      name: 'Bangchak สุขุมวิท 101',
-      vicinity: 'ถนนสุขุมวิท แขวงบางนา',
-      latitude: 13.6620,
-      longitude: 100.6120,
-      rating: 3.8,
-      user_ratings_total: 45,
-      opening_hours: { open_now: false },
-      distance: 5.1,
-      brand: 'Bangchak',
-      fuelReports: [],
-      totalReports: 0,
-    },
-    {
-      place_id: 'mock_4',
-      name: 'Esso รัชดาภิเษก',
-      vicinity: 'ถนนรัชดาภิเษก แขวงดินแดง',
-      latitude: 13.7700,
-      longitude: 100.5740,
-      rating: 4.5,
-      user_ratings_total: 210,
-      opening_hours: { open_now: true },
-      distance: 1.8,
-      brand: 'Esso',
-      fuelReports: [
-        { fuelType: 'gasohol95', status: 'available', price: 36.44 },
-        { fuelType: 'gasohol91', status: 'available', price: 29.18 },
-        { fuelType: 'diesel', status: 'available', price: 29.94 },
-        { fuelType: 'e20', status: 'empty' },
-        { fuelType: 'e85', status: 'empty' },
-      ],
-      totalReports: 5,
-      lastReportAt: new Date(Date.now() - 900000).toISOString(),
+      place_id: 'mock_2', name: 'Shell ลาดพร้าว', vicinity: 'ถนนลาดพร้าว',
+      latitude: 13.789, longitude: 100.589, rating: 4.0, user_ratings_total: 89,
+      opening_hours: { open_now: true }, distance: 2.3, brand: 'Shell',
+      fuelReports: [{ fuelType: 'gasohol95', status: 'empty' }, { fuelType: 'diesel', status: 'available', price: 29.94 }],
+      totalReports: 8, lastReportAt: new Date(Date.now() - 3600000).toISOString(),
     },
   ];
 }

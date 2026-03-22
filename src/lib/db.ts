@@ -1,62 +1,34 @@
-import sql from 'mssql';
+import mysql from 'mysql2/promise';
 
-const config: sql.config = {
-  server: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'admin_thaihelp',
-  user: process.env.DB_USER || 'admin_thaihelp',
-  password: process.env.DB_PASSWORD || '',
-  port: parseInt(process.env.DB_PORT || '1433'),
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-  },
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
-};
+let pool: mysql.Pool | null = null;
 
-let pool: sql.ConnectionPool | null = null;
-
-export async function getDb(): Promise<sql.ConnectionPool> {
+export function getDb(): mysql.Pool {
   if (!pool) {
-    pool = await sql.connect(config);
+    pool = mysql.createPool({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'admin_thaihelp',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'admin_thaihelp',
+      port: parseInt(process.env.DB_PORT || '3306'),
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      charset: 'utf8mb4',
+    });
   }
   return pool;
 }
 
-export async function query<T>(
-  queryString: string,
-  params?: Record<string, unknown>
-): Promise<T[]> {
-  const db = await getDb();
-  const request = db.request();
-
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      request.input(key, value);
-    }
-  }
-
-  const result = await request.query(queryString);
-  return result.recordset as T[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function query(sql: string, params?: unknown[]): Promise<any[]> {
+  const db = getDb();
+  const [rows] = await db.query(sql, params);
+  return rows as unknown[];
 }
 
-export async function execute(
-  queryString: string,
-  params?: Record<string, unknown>
-): Promise<sql.IResult<unknown>> {
-  const db = await getDb();
-  const request = db.request();
-
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      request.input(key, value);
-    }
-  }
-
-  return request.query(queryString);
+export async function execute(sql: string, params?: unknown[]): Promise<{ insertId: number; affectedRows: number }> {
+  const db = getDb();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await db.query(sql, params) as any;
+  return { insertId: result.insertId, affectedRows: result.affectedRows };
 }
-
-export { sql };
