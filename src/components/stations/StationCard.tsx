@@ -121,16 +121,28 @@ export function StationCard({ station, onReport }: StationCardProps) {
         </div>
       )}
 
-      {/* Report CTA */}
+      {/* Action Buttons */}
       <div className="metal-divider" />
-      <button
-        onClick={onReport}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3.5 text-orange-400 text-sm font-medium transition-all hover:bg-orange-500/5 group"
-      >
-        <MessageSquarePlus className="w-4 h-4 group-hover:drop-shadow-[0_0_4px_rgba(249,115,22,0.5)]" />
-        {hasReports ? 'อัปเดตรายงาน' : 'รายงานสถานะน้ำมัน'}
-        <ChevronRight className="w-3 h-3 ml-auto group-hover:translate-x-0.5 transition-transform" />
-      </button>
+      <div className="flex">
+        {/* Navigate to Google Maps */}
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}&destination_place_id=${station.place_id}&travelmode=driving`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-blue-400 text-sm font-medium transition-all hover:bg-blue-500/5 group border-r border-slate-800/30"
+        >
+          <Navigation className="w-4 h-4 group-hover:drop-shadow-[0_0_4px_rgba(37,99,235,0.5)]" />
+          นำทาง
+        </a>
+        {/* Report */}
+        <button
+          onClick={onReport}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-orange-400 text-sm font-medium transition-all hover:bg-orange-500/5 group"
+        >
+          <MessageSquarePlus className="w-4 h-4 group-hover:drop-shadow-[0_0_4px_rgba(249,115,22,0.5)]" />
+          รายงาน
+        </button>
+      </div>
     </div>
   );
 }
