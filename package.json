@@ -1,0 +1,40 @@
+{
+  "name": "thaihelp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ThaiHelp - แอปช่วยเหลือคนไทยเดินทาง",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@vis.gl/react-google-maps": "^1.7.1",
+    "autoprefixer": "^10.4.27",
+    "clsx": "^2.1.1",
+    "firebase": "^12.11.0",
+    "groq-sdk": "^1.1.1",
+    "lucide-react": "^0.577.0",
+    "mssql": "^12.2.1",
+    "next": "^14.2.35",
+    "postcss": "^8.5.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
+    "tedious": "^19.2.1",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.9",
+    "@types/react-dom": "^18.3.7",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "sharp": "^0.34.5"
+  }
+}

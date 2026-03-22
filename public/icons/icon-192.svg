@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="32" fill="url(#bg)"/>
+  <g transform="translate(96, 91)">
+    <!-- Shield -->
+    <path d="M0,-36 L30,-18 L30,10 Q30,30 0,36 Q-30,30 -30,10 L-30,-18 Z"
+      fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+    <!-- Checkmark -->
+    <polyline points="-15,2 -3,14 18,-10"
+      fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- TH text -->
+  <text x="96" y="151" text-anchor="middle" fill="rgba(255,255,255,0.9)"
+    font-family="Arial,sans-serif" font-weight="bold" font-size="18px">TH</text>
+</svg>
