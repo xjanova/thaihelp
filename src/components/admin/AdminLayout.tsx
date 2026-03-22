@@ -96,6 +96,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <LogOut className="w-4 h-4" />
               <span>ออกจากระบบ</span>
             </button>
+            <p className="text-[9px] text-slate-700 text-center mt-2 font-mono">
+              {process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
+            </p>
           </div>
         </div>
       </aside>

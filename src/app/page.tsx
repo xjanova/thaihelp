@@ -93,7 +93,7 @@ export default function HomePage() {
 
               <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
                 <Code2 className="w-3 h-3" />
-                <span>สร้างโดย xman studio • เทคโนโลยีเพื่อสังคม</span>
+                <span>xman studio • {process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</span>
               </div>
             </div>
           </div>

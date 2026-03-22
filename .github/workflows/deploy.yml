@@ -1,14 +1,29 @@
-name: Deploy ThaiHelp
+name: Build & Deploy ThaiHelp
 
 on:
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Server via SSH
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build
+        run: npx next build
+
+      - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -17,45 +32,30 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             set -e
-            DOMAIN="thaihelp.xman4289.com"
-            BASE="/home/admin/domains/${DOMAIN}"
-            APP="${BASE}/app"
+            BASE="/home/admin/domains/thaihelp.xman4289.com"
 
-            echo "=== ThaiHelp Auto-Deploy ==="
-            echo "$(date)"
+            echo "=== ThaiHelp Deploy ==="
 
-            # Clone or pull
-            if [ -d "${BASE}/repo/.git" ]; then
-              cd ${BASE}/repo && git pull origin main
-            else
-              mkdir -p ${BASE}
-              git clone https://github.com/xjanova/thaihelp.git ${BASE}/repo
-              cd ${BASE}/repo
-            fi
+            # Pull latest
+            cd $BASE/repo
+            git pull origin main
 
-            # Install & Build
-            cd ${BASE}/repo
-            npm ci --legacy-peer-deps
+            # Install + Build on server
+            npm install --legacy-peer-deps
+            rm -rf .next
             npx next build
 
             # Deploy standalone
-            mkdir -p ${APP}
-            rm -rf ${APP}/*
-            cp -r .next/standalone/* ${APP}/
-            cp -r .next/static ${APP}/.next/static
-            cp -r public ${APP}/public
+            mkdir -p $BASE/app
+            rm -rf $BASE/app/*
+            cp -r .next/standalone/. $BASE/app/
+            mkdir -p $BASE/app/.next
+            cp -r .next/static $BASE/app/.next/static
+            cp -r public $BASE/app/public
 
-            # Copy env if exists
-            [ -f ${BASE}/.env.local ] && cp ${BASE}/.env.local ${APP}/.env.local
-
-            # Restart PM2
-            cd ${APP}
-            if pm2 describe thaihelp > /dev/null 2>&1; then
-              pm2 restart thaihelp
-            else
-              PORT=3000 pm2 start server.js --name thaihelp
-            fi
+            # Restart
+            cd $BASE/app
+            pm2 restart thaihelp 2>/dev/null || PORT=3000 pm2 start server.js --name thaihelp
             pm2 save
 
-            echo "=== Deploy Complete ==="
-            echo "https://${DOMAIN}"
+            echo "=== Deploy Done ==="

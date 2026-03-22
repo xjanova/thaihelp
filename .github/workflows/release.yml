@@ -1,0 +1,50 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: version
+        run: |
+          VERSION="v1.0.$(git rev-list --count HEAD)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Get commit messages
+        id: changelog
+        run: |
+          CHANGELOG=$(git log --oneline -10 --pretty=format:"- %s")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "ThaiHelp ${{ steps.version.outputs.version }}"
+          body: |
+            ## ThaiHelp Release ${{ steps.version.outputs.version }}
+
+            **ชุมชนช่วยเหลือนักเดินทาง** by xman studio
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ---
+            🌐 Live: https://thaihelp.xman4289.com
+            🔐 Admin: https://thaihelp.xman4289.com/admin/login
+          draft: false
+          prerelease: false
