@@ -10,8 +10,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMapData } from '@/hooks/useMapData';
 import { useSpeech } from '@/hooks/useSpeech';
-import { Mic, Plus, Fuel, AlertTriangle, MessageCircle, ChevronRight, Shield, Heart, Code2 } from 'lucide-react';
+import { Mic, Plus, Fuel, AlertTriangle, MessageCircle, ChevronRight, Heart, Code2 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { GasStation } from '@/types';
 
 export default function HomePage() {
@@ -49,11 +50,11 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/90 to-slate-950/60 z-20 flex items-center justify-center p-6">
             <div className="max-w-md w-full space-y-6">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-xl shadow-orange-500/30 mb-4">
-                  <Shield className="w-10 h-10 text-white" />
-                </div>
-                <h1 className="text-3xl font-bold text-white">ThaiHelp</h1>
-                <p className="text-slate-400 mt-1">ช่วยเหลือคนไทยเดินทาง</p>
+                <Image src="/logo.png" alt="ThaiHelp" width={100} height={100} className="mx-auto mb-3 drop-shadow-2xl" />
+                <h1 className="text-3xl font-bold">
+                  <span className="text-blue-400">Thai</span><span className="text-orange-400">Help</span>
+                </h1>
+                <p className="text-slate-400 mt-1">ชุมชนช่วยเหลือนักเดินทาง</p>
               </div>
 
               <div className="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">

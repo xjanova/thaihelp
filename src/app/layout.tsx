@@ -3,8 +3,8 @@ import { PWAProvider } from '@/components/pwa/PWAProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ThaiHelp - ช่วยเหลือคนไทยเดินทาง',
-  description: 'แอปช่วยเหลือคนไทยเดินทาง แจ้งเหตุ รายงานปั๊มน้ำมัน สั่งงานด้วยเสียง',
+  title: 'ThaiHelp - ชุมชนช่วยเหลือนักเดินทาง',
+  description: 'ชุมชนช่วยเหลือนักเดินทาง แจ้งเหตุ รายงานปั๊มน้ำมัน สั่งงานด้วยเสียง',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

@@ -1,0 +1,61 @@
+name: Deploy ThaiHelp
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            DOMAIN="thaihelp.xman4289.com"
+            BASE="/home/admin/domains/${DOMAIN}"
+            APP="${BASE}/app"
+
+            echo "=== ThaiHelp Auto-Deploy ==="
+            echo "$(date)"
+
+            # Clone or pull
+            if [ -d "${BASE}/repo/.git" ]; then
+              cd ${BASE}/repo && git pull origin main
+            else
+              mkdir -p ${BASE}
+              git clone https://github.com/xjanova/thaihelp.git ${BASE}/repo
+              cd ${BASE}/repo
+            fi
+
+            # Install & Build
+            cd ${BASE}/repo
+            npm ci --legacy-peer-deps
+            npx next build
+
+            # Deploy standalone
+            mkdir -p ${APP}
+            rm -rf ${APP}/*
+            cp -r .next/standalone/* ${APP}/
+            cp -r .next/static ${APP}/.next/static
+            cp -r public ${APP}/public
+
+            # Copy env if exists
+            [ -f ${BASE}/.env.local ] && cp ${BASE}/.env.local ${APP}/.env.local
+
+            # Restart PM2
+            cd ${APP}
+            if pm2 describe thaihelp > /dev/null 2>&1; then
+              pm2 restart thaihelp
+            else
+              PORT=3000 pm2 start server.js --name thaihelp
+            fi
+            pm2 save
+
+            echo "=== Deploy Complete ==="
+            echo "https://${DOMAIN}"

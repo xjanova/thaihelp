@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Shield, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 
@@ -41,15 +42,13 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center">
           <div className="relative inline-block">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 flex items-center justify-center shadow-2xl shadow-orange-500/25 border border-orange-400/30 mx-auto mb-4">
-              <Shield className="w-10 h-10 text-white drop-shadow-md" />
-            </div>
-            {/* Orbital glow */}
-            <div className="absolute -inset-3 rounded-3xl border border-orange-500/10 animate-pulse" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50" />
+            <Image src="/logo.png" alt="ThaiHelp" width={90} height={90} className="mx-auto drop-shadow-2xl" />
+            <div className="absolute -inset-4 rounded-full border border-blue-500/10 animate-pulse" />
           </div>
-          <h1 className="text-3xl font-bold text-chrome mt-2">ThaiHelp</h1>
-          <p className="text-slate-400 mt-1">ช่วยเหลือคนไทยเดินทาง</p>
+          <h1 className="text-3xl font-bold mt-3">
+            <span className="text-blue-400">Thai</span><span className="text-orange-400">Help</span>
+          </h1>
+          <p className="text-slate-400 mt-1">ชุมชนช่วยเหลือนักเดินทาง</p>
         </div>
 
         {/* Features */}
