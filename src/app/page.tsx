@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { MapView } from '@/components/map/MapView';
 import { MapFilters, type MapFilter } from '@/components/map/MapFilters';
 import { ReportModal } from '@/components/stations/ReportModal';
 import { VoiceAssistant } from '@/components/voice/VoiceAssistant';
+import { NongYingAvatar } from '@/components/voice/NongYingAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useMapData } from '@/hooks/useMapData';
 import { useSpeech } from '@/hooks/useSpeech';
+import { speak } from '@/lib/speech';
 import { Mic, Plus, Fuel, AlertTriangle, MessageCircle, ChevronRight, Heart, Code2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,10 +24,39 @@ export default function HomePage() {
   const { stations, incidents, loading, lastUpdated, refresh } = useMapData(position);
   const { isListening, listen, stopListening, transcript } = useSpeech();
 
+  const [mounted, setMounted] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [greeted, setGreeted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
   const [mapFilter, setMapFilter] = useState<MapFilter>('all');
   const [reportStation, setReportStation] = useState<GasStation | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // น้องหญิงทักทายตอนเข้าเว็บ
+  useEffect(() => {
+    if (showWelcome && !greeted) {
+      const timer = setTimeout(() => {
+        const hour = new Date().getHours();
+        let greeting = '';
+        if (hour < 12) {
+          greeting = 'สวัสดีตอนเช้าค่ะ! หนูชื่อน้องหญิง ยินดีต้อนรับสู่ ThaiHelp จ้า! ';
+        } else if (hour < 17) {
+          greeting = 'สวัสดีตอนบ่ายค่ะ! หนูน้องหญิงเอง พร้อมช่วยเหลือพี่นักเดินทางจ้า! ';
+        } else {
+          greeting = 'สวัสดีตอนเย็นค่ะ! น้องหญิงอยู่ตรงนี้เลย พี่ต้องการอะไรพูดได้เลยนะคะ! ';
+        }
+        if (user) {
+          greeting += `พี่${user.nickname} เดินทางปลอดภัยนะคะ!`;
+        } else {
+          greeting += 'กดปุ่มไมค์สีส้มเพื่อสั่งด้วยเสียงได้เลยค่ะ!';
+        }
+        speak(greeting);
+        setGreeted(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showWelcome, greeted, user]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -58,15 +89,23 @@ export default function HomePage() {
                 <p className="text-slate-400 mt-1">ชุมชนช่วยเหลือนักเดินทาง</p>
               </div>
 
+              {/* น้องหญิง Greeting */}
               <div className="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Heart className="w-4 h-4 text-red-400" />
-                  <span className="text-xs font-medium text-red-400">ไม่แสวงหากำไร • ช่วยเหลือยามวิกฤติ</span>
+                <div className="flex items-start gap-3">
+                  <NongYingAvatar size={48} isSpeaking={greeted} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-orange-400 mb-1">น้องหญิง AI</p>
+                    <p className="text-sm text-slate-300 leading-relaxed">
+                      {mounted && user
+                        ? `สวัสดีค่ะพี่${user.nickname}! หนูน้องหญิง พร้อมช่วยเหลือการเดินทางจ้า!`
+                        : 'สวัสดีค่ะ! หนูน้องหญิง AI ประจำแอป ThaiHelp พร้อมช่วยเหลือพี่ๆ นักเดินทางค่ะ!'}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  แอปช่วยเหลือคนไทยในยามที่บ้านเมืองต้องการความร่วมมือ
-                  ช่วยกันรายงาน แจ้งเหตุ แชร์ข้อมูลน้ำมัน เพื่อเพื่อนร่วมทาง
-                </p>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                  <Heart className="w-3 h-3 text-red-400" />
+                  <span className="text-[10px] text-red-400/80">ไม่แสวงหากำไร • ช่วยเหลือยามวิกฤติ • by xman studio</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
