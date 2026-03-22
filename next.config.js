@@ -2,6 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   images: {
+    unoptimized: true, // Use unoptimized images for PHP proxy compatibility
     remotePatterns: [
       {
         protocol: 'https',
