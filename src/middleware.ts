@@ -18,6 +18,7 @@ const PROTECTED_API = [
   '/api/admin/reports',
   '/api/admin/incidents',
   '/api/admin/settings',
+  '/api/db/setup',
 ];
 
 // Routes explicitly excluded from protection (login / logout endpoints)
@@ -60,5 +61,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/api/db/:path*'],
 };

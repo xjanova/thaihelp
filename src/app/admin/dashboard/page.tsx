@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import {
   Fuel, AlertTriangle, Users, FileText,
-  RefreshCw, Clock, ThumbsUp, Activity, TrendingUp
+  RefreshCw, Clock, ThumbsUp, TrendingUp, Database
 } from 'lucide-react';
-// DemoBanner removed — using real DB data
 
 interface Stats {
   totalStations: number;
@@ -16,6 +15,7 @@ interface Stats {
   activeIncidents: number;
   recentReports: { id: number; station: string; reporter: string; time: string; fuels: number }[];
   recentIncidents: { id: number; title: string; category: string; reporter: string; time: string; upvotes: number }[];
+  dbReady?: boolean;
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -26,12 +26,18 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [dbError, setDbError] = useState(false);
+
   const fetchStats = async () => {
     try {
       const res = await fetch('/api/admin/stats');
       const data = await res.json();
-      if (data.success) setStats(data.data);
-    } catch { /* ignore */ }
+      if (data.data) {
+        setStats(data.data);
+        setDbError(!data.data.dbReady);
+      }
+      if (!data.success) setDbError(true);
+    } catch { setDbError(true); }
     finally { setLoading(false); }
   };
 
@@ -51,6 +57,17 @@ export default function AdminDashboard() {
             รีเฟรช
           </button>
         </div>
+
+        {/* DB Warning */}
+        {dbError && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex items-start gap-3">
+            <Database className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-yellow-400 font-medium">ฐานข้อมูลยังไม่พร้อม</p>
+              <p className="text-xs text-slate-400 mt-1">กรุณาไปที่ <a href="/admin/setup" className="text-cyan-400 underline">ตั้งค่าระบบ</a> เพื่อสร้างตารางฐานข้อมูล</p>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { execute, query } from '@/lib/db';
+import { isAdminAuthenticated } from '@/lib/admin-auth';
 
 const CREATE_TABLES = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -101,8 +102,11 @@ const DEFAULT_SETTINGS = [
   { key: 'default_map_zoom', value: '12', group: 'map' },
 ];
 
-// GET — check setup status
+// GET — check setup status (requires admin auth)
 export async function GET() {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const tables = await query('SHOW TABLES');
     const tableNames = tables.map((t) => Object.values(t)[0] as string);
@@ -134,7 +138,11 @@ export async function GET() {
   }
 }
 
+// POST — create tables (requires admin auth)
 export async function POST() {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     for (const sql of CREATE_TABLES) {
       await execute(sql);

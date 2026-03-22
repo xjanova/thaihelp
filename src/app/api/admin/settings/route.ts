@@ -9,6 +9,14 @@ export async function GET() {
   }
 
   try {
+    // Check if table exists first
+    const tables = await query('SHOW TABLES');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tableNames = tables.map((t: any) => Object.values(t)[0] as string);
+    if (!tableNames.includes('site_settings')) {
+      return NextResponse.json({ success: true, data: {}, dbMissing: true });
+    }
+
     const rows = await query('SELECT setting_key, setting_value, setting_group FROM site_settings ORDER BY setting_group, setting_key');
     const settings: Record<string, string> = {};
     for (const r of rows) {
@@ -16,7 +24,8 @@ export async function GET() {
     }
     return NextResponse.json({ success: true, data: settings });
   } catch (error) {
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
+    console.error('Settings GET error:', error);
+    return NextResponse.json({ success: true, data: {}, error: String(error) });
   }
 }
 
@@ -36,7 +45,8 @@ export async function PUT(request: NextRequest) {
 
     for (const [key, value] of Object.entries(settings)) {
       await execute(
-        `INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?)
+        `INSERT INTO site_settings (setting_key, setting_value, setting_group)
+         VALUES (?, ?, 'general')
          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
         [key, String(value)]
       );

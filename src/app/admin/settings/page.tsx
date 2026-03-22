@@ -27,6 +27,7 @@ export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [dbStatus, setDbStatus] = useState<{ isComplete: boolean; tables: string[]; missingTables: string[] } | null>(null);
   const [setupLoading, setSetupLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -37,17 +38,30 @@ export default function AdminSettingsPage() {
     try {
       const res = await fetch('/api/admin/settings');
       const data = await res.json();
-      if (data.success) setSettings(data.data || {});
-    } catch { /* ignore */ }
+      if (data.success) {
+        setSettings(data.data || {});
+        if (data.dbMissing) setError('ตาราง site_settings ยังไม่ถูกสร้าง — กรุณาสร้างตาราง DB ก่อน');
+      } else {
+        setError(data.error || 'ไม่สามารถโหลดการตั้งค่าได้');
+      }
+    } catch (e) {
+      setError('ไม่สามารถเชื่อมต่อ API ได้: ' + String(e));
+    }
     finally { setLoading(false); }
   };
 
   const checkDbStatus = async () => {
     try {
       const res = await fetch('/api/db/setup');
+      if (res.status === 401) {
+        setDbStatus({ isComplete: false, tables: [], missingTables: ['ต้องล็อกอินก่อน'] });
+        return;
+      }
       const data = await res.json();
       setDbStatus(data);
-    } catch { /* ignore */ }
+    } catch {
+      setDbStatus({ isComplete: false, tables: [], missingTables: ['เชื่อมต่อไม่ได้'] });
+    }
   };
 
   const handleSetupDb = async () => {
@@ -156,6 +170,13 @@ export default function AdminSettingsPage() {
             </div>
           )}
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
 
         {/* Database Status */}
         <div className="metal-panel rounded-2xl overflow-hidden">
