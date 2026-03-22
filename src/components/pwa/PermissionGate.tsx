@@ -7,9 +7,9 @@ import Image from 'next/image';
 type PermissionStatus = 'prompt' | 'granted' | 'denied' | 'checking';
 
 export function PermissionGate({ children }: { children: React.ReactNode }) {
-  const [gpsStatus, setGpsStatus] = useState<PermissionStatus>('checking');
-  const [micStatus, setMicStatus] = useState<PermissionStatus>('checking');
-  const [showGate, setShowGate] = useState(true);
+  const [gpsStatus, setGpsStatus] = useState<PermissionStatus>('prompt');
+  const [micStatus, setMicStatus] = useState<PermissionStatus>('prompt');
+  const [showGate, setShowGate] = useState(false); // Start hidden, show after check
   const [requesting, setRequesting] = useState(false);
 
   // Check existing permissions on mount
@@ -24,31 +24,29 @@ export function PermissionGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Check GPS permission
-      try {
-        if ('permissions' in navigator) {
-          const gps = await navigator.permissions.query({ name: 'geolocation' });
-          setGpsStatus(gps.state as PermissionStatus);
-          if (gps.state === 'granted') {
-            navigator.geolocation.getCurrentPosition(() => {}, () => {});
-          }
-        } else {
-          setGpsStatus('prompt');
-        }
-      } catch {
-        setGpsStatus('prompt');
-      }
+      // Check GPS + Mic, then show gate if not granted
+      let gps: PermissionStatus = 'prompt';
+      let mic: PermissionStatus = 'prompt';
 
-      // Check Mic permission
       try {
         if ('permissions' in navigator) {
-          const mic = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          setMicStatus(mic.state as PermissionStatus);
-        } else {
-          setMicStatus('prompt');
+          const gpsResult = await navigator.permissions.query({ name: 'geolocation' });
+          gps = gpsResult.state as PermissionStatus;
+          setGpsStatus(gps);
         }
-      } catch {
-        setMicStatus('prompt');
+      } catch { /* ignore */ }
+
+      try {
+        if ('permissions' in navigator) {
+          const micResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          mic = micResult.state as PermissionStatus;
+          setMicStatus(mic);
+        }
+      } catch { /* ignore */ }
+
+      // Only show gate if permissions are NOT already granted
+      if (gps !== 'granted' || mic !== 'granted') {
+        setShowGate(true);
       }
     };
 
@@ -96,17 +94,8 @@ export function PermissionGate({ children }: { children: React.ReactNode }) {
     setShowGate(false);
   };
 
-  // Already granted or dismissed
+  // Already granted or dismissed — render children immediately
   if (!showGate) return <>{children}</>;
-
-  // Still checking
-  if (gpsStatus === 'checking') {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#060a14' }}>
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden"
