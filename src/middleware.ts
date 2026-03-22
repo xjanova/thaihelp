@@ -9,6 +9,7 @@ const PROTECTED_PAGES = [
   '/admin/incidents',
   '/admin/users',
   '/admin/settings',
+  '/admin/setup',
 ];
 
 // Admin API routes that require authentication
@@ -16,6 +17,7 @@ const PROTECTED_API = [
   '/api/admin/stats',
   '/api/admin/reports',
   '/api/admin/incidents',
+  '/api/admin/settings',
 ];
 
 // Routes explicitly excluded from protection (login / logout endpoints)
