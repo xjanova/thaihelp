@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { PWAProvider } from '@/components/pwa/PWAProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -37,7 +38,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className="antialiased">
-        {children}
+        <PWAProvider>
+          {children}
+        </PWAProvider>
       </body>
     </html>
   );
