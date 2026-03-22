@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Mic, MicOff, Volume2, X, HelpCircle, Navigation, Fuel, AlertTriangle } from 'lucide-react';
 import { useSpeech } from '@/hooks/useSpeech';
-import { matchCommand, getVoiceResponse, VOICE_COMMANDS } from '@/lib/voice-commands';
+import { VOICE_COMMANDS } from '@/lib/voice-commands';
 import { NongYingAvatar } from './NongYingAvatar';
 import { useRouter } from 'next/navigation';
 
@@ -27,61 +27,72 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening, processing]);
 
-  const processCommand = useCallback((text: string) => {
+  const processCommand = useCallback(async (text: string) => {
     setProcessing(true);
-    const cmd = matchCommand(text);
-
-    if (!cmd) {
-      const response = 'อุ๊ย น้องหญิงไม่เข้าใจอ่ะค่ะ ลองพูดว่า หาปั๊ม, รายงาน, แจ้งเหตุ, หรือ ช่วย นะคะ!';
-      setLastResponse(response);
-      sayText(response);
-      setProcessing(false);
-      return;
-    }
 
     const nearest = stations[0];
-    const data = {
-      count: stations.length,
-      nearest: nearest?.name,
-      distance: nearest?.distance,
-    };
 
-    const response = getVoiceResponse(cmd.action, data);
-    setLastResponse(response);
-    sayText(response);
+    try {
+      // Send to Groq AI via API
+      const res = await fetch('/api/voice-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: text,
+          stationCount: stations.length,
+          nearestStation: nearest?.name,
+          nearestDistance: nearest?.distance,
+        }),
+      });
 
-    // Execute action after speaking
-    setTimeout(() => {
-      switch (cmd.action) {
-        case 'FIND_STATION':
-        case 'FIND_DIESEL':
-        case 'FIND_GASOHOL':
-        case 'CHECK_PRICE':
-          router.push('/stations');
-          break;
-        case 'REPORT':
-          router.push('/stations');
-          break;
-        case 'INCIDENT':
-          router.push('/report');
-          break;
-        case 'NAVIGATE':
-          if (nearest) {
-            window.open(
-              `https://www.google.com/maps/dir/?api=1&destination=${nearest.latitude},${nearest.longitude}&destination_place_id=${nearest.place_id}&travelmode=driving`,
-              '_blank'
-            );
-          } else {
-            router.push('/stations');
-          }
-          break;
-        case 'HELP':
-          setShowHelp(true);
-          break;
-      }
+      const data = await res.json();
+      const reply = data.reply || 'น้องหญิงไม่เข้าใจค่ะ ลองพูดใหม่นะคะ!';
+      const action = data.action || 'NONE';
+
+      setLastResponse(reply);
+      sayText(reply);
+
+      // Execute action after speaking
+      setTimeout(() => {
+        executeAction(action, nearest);
+        setProcessing(false);
+      }, 1500);
+    } catch {
+      const fallback = 'อุ๊ย เชื่อมต่อไม่ได้ค่ะ ลองใหม่นะคะ!';
+      setLastResponse(fallback);
+      sayText(fallback);
       setProcessing(false);
-    }, 1500);
-  }, [stations, router, sayText]);
+    }
+  }, [stations, sayText]);
+
+  const executeAction = (action: string, nearest?: { name: string; latitude: number; longitude: number; place_id: string }) => {
+    switch (action) {
+      case 'FIND_STATION':
+      case 'FIND_DIESEL':
+      case 'FIND_GASOHOL':
+      case 'CHECK_PRICE':
+      case 'REPORT':
+        router.push('/stations');
+        break;
+      case 'INCIDENT':
+        router.push('/report');
+        break;
+      case 'NAVIGATE':
+        if (nearest) {
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&destination=${nearest.latitude},${nearest.longitude}&destination_place_id=${nearest.place_id}&travelmode=driving`,
+            '_blank'
+          );
+        } else {
+          router.push('/stations');
+        }
+        break;
+      case 'HELP':
+        setShowHelp(true);
+        break;
+      // CHAT and NONE — just speak, no navigation
+    }
+  };
 
   const handleMicClick = () => {
     if (isListening) {
@@ -141,44 +152,51 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
             {isListening && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-2">
                 <p className="text-xs text-red-400 animate-pulse mb-1">● กำลังฟัง...</p>
-                <p className="text-sm text-white">{transcript || 'พูดคำสั่งได้เลย...'}</p>
+                <p className="text-sm text-white">{transcript || 'พูดคำสั่งได้เลยค่ะ...'}</p>
               </div>
             )}
 
-            {isSpeaking && (
+            {processing && !isListening && (
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <NongYingAvatar size={24} isSpeaking={true} />
+                  <p className="text-xs text-orange-400 animate-pulse">น้องหญิงกำลังคิด...</p>
+                </div>
+              </div>
+            )}
+
+            {isSpeaking && !processing && (
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-2">
-                <p className="text-xs text-blue-400 animate-pulse mb-1">🔊 กำลังพูด...</p>
-                <p className="text-sm text-white">{lastResponse}</p>
+                <div className="flex items-start gap-2">
+                  <NongYingAvatar size={24} isSpeaking={true} />
+                  <p className="text-sm text-white flex-1">{lastResponse}</p>
+                </div>
               </div>
             )}
 
-            {!isListening && !isSpeaking && lastResponse && (
+            {!isListening && !isSpeaking && !processing && lastResponse && (
               <div className="bg-slate-800/50 rounded-xl p-3 mb-2">
-                <p className="text-xs text-slate-500 mb-1">ตอบล่าสุด:</p>
-                <p className="text-sm text-slate-300">{lastResponse}</p>
+                <div className="flex items-start gap-2">
+                  <NongYingAvatar size={24} />
+                  <p className="text-sm text-slate-300 flex-1">{lastResponse}</p>
+                </div>
               </div>
             )}
 
             {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-1.5 mt-2">
-              <button onClick={() => { sayText('กำลังค้นหาปั๊มน้ำมันใกล้คุณ'); router.push('/stations'); }}
+              <button onClick={() => { processCommand('หาปั๊มน้ำมันใกล้ฉัน'); }}
                 className="metal-btn rounded-lg p-2 text-[11px] text-slate-400 hover:text-orange-400 flex flex-col items-center gap-1">
                 <Fuel className="w-4 h-4" />
                 หาปั๊ม
               </button>
-              <button onClick={() => { sayText('เปิดหน้าแจ้งเหตุ'); router.push('/report'); }}
+              <button onClick={() => { processCommand('แจ้งเหตุ'); }}
                 className="metal-btn rounded-lg p-2 text-[11px] text-slate-400 hover:text-red-400 flex flex-col items-center gap-1">
                 <AlertTriangle className="w-4 h-4" />
                 แจ้งเหตุ
               </button>
-              <button onClick={() => {
-                if (stations[0]) {
-                  sayText(`นำทางไป ${stations[0].name}`);
-                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${stations[0].latitude},${stations[0].longitude}&travelmode=driving`, '_blank');
-                } else {
-                  sayText('ยังไม่พบปั๊มใกล้เคียง');
-                }
-              }} className="metal-btn rounded-lg p-2 text-[11px] text-slate-400 hover:text-blue-400 flex flex-col items-center gap-1">
+              <button onClick={() => { processCommand('นำทางไปปั๊มที่ใกล้สุด'); }}
+                className="metal-btn rounded-lg p-2 text-[11px] text-slate-400 hover:text-blue-400 flex flex-col items-center gap-1">
                 <Navigation className="w-4 h-4" />
                 นำทาง
               </button>
@@ -199,16 +217,19 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowHelp(false)}>
           <div className="metal-panel rounded-2xl p-5 max-w-sm w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-chrome flex items-center gap-2">
-                <Mic className="w-5 h-5 text-orange-400" />
-                คำสั่งเสียง
-              </h2>
+              <div className="flex items-center gap-2">
+                <NongYingAvatar size={40} />
+                <div>
+                  <h2 className="text-base font-bold text-chrome">น้องหญิง</h2>
+                  <p className="text-[10px] text-slate-500">AI ผู้ช่วยนักเดินทาง</p>
+                </div>
+              </div>
               <button onClick={() => setShowHelp(false)} className="p-1 text-slate-500 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 mb-4">กดปุ่มไมค์แล้วพูดคำสั่งเหล่านี้:</p>
+            <p className="text-xs text-slate-500 mb-4">กดปุ่มไมค์แล้วพูดอะไรก็ได้ น้องหญิงเข้าใจภาษาธรรมชาติค่ะ! เช่น:</p>
 
             <div className="space-y-2">
               {VOICE_COMMANDS.map((cmd) => (
@@ -216,7 +237,6 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
                   key={cmd.action}
                   onClick={() => {
                     setShowHelp(false);
-                    sayText(cmd.description);
                     processCommand(cmd.example);
                   }}
                   className="w-full metal-panel rounded-xl p-3 text-left hover:border-orange-500/20 transition-all"
@@ -228,9 +248,9 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
             </div>
 
             <div className="mt-4 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-xs text-blue-400 font-medium">💡 เคล็ดลับ</p>
+              <p className="text-xs text-blue-400 font-medium">💡 เคล็ดลับจากน้องหญิง</p>
               <p className="text-[10px] text-blue-300/60 mt-1">
-                ใช้ขณะขับรถ — กดปุ่มไมค์ 1 ครั้ง พูดคำสั่ง แอปจะตอบด้วยเสียงและทำงานให้อัตโนมัติ
+                พี่พูดเป็นภาษาธรรมชาติได้เลยค่ะ ไม่ต้องจำคำสั่ง แค่บอกสิ่งที่ต้องการ น้องหญิงเข้าใจเองจ้า!
               </p>
             </div>
           </div>
