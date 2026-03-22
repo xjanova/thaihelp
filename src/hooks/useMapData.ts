@@ -7,6 +7,7 @@ interface MapData {
   stations: GasStation[];
   incidents: Incident[];
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
   lastUpdated: Date | null;
   refresh: () => void;
@@ -16,15 +17,23 @@ export function useMapData(position: MapPosition, autoRefreshMs = 30000): MapDat
   const [stations, setStations] = useState<GasStation[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Destructure lat/lng so the callback only re-creates when the actual
+  // coordinate values change, not when the position object reference changes.
+  const { lat, lng } = position;
+
   const fetchData = useCallback(async () => {
+    // Use refreshing (not loading) for subsequent fetches so the UI doesn't
+    // flash a full loading state on every auto-refresh tick.
+    setRefreshing(true);
     try {
       const [stationsRes, incidentsRes] = await Promise.all([
-        fetch(`/api/stations?lat=${position.lat}&lng=${position.lng}&radius=15000`),
-        fetch(`/api/incidents?lat=${position.lat}&lng=${position.lng}`),
+        fetch(`/api/stations?lat=${lat}&lng=${lng}&radius=15000`),
+        fetch(`/api/incidents?lat=${lat}&lng=${lng}`),
       ]);
 
       const stationsData = await stationsRes.json();
@@ -39,8 +48,9 @@ export function useMapData(position: MapPosition, autoRefreshMs = 30000): MapDat
       setError('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [position]);
+  }, [lat, lng]);
 
   useEffect(() => {
     fetchData();
@@ -52,5 +62,5 @@ export function useMapData(position: MapPosition, autoRefreshMs = 30000): MapDat
     };
   }, [fetchData, autoRefreshMs]);
 
-  return { stations, incidents, loading, error, lastUpdated, refresh: fetchData };
+  return { stations, incidents, loading, refreshing, error, lastUpdated, refresh: fetchData };
 }

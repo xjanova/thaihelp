@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, X, Wifi, WifiOff } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -13,6 +13,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [showBanner, setShowBanner] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [showOfflineToast, setShowOfflineToast] = useState(false);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Register service worker
@@ -31,8 +32,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
-      // Show banner after 5 seconds
-      setTimeout(() => setShowBanner(true), 5000);
+      // Show banner after 5 seconds; store handle so we can cancel on unmount
+      bannerTimerRef.current = setTimeout(() => setShowBanner(true), 5000);
     };
     window.addEventListener('beforeinstallprompt', handler);
 
@@ -53,6 +54,10 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
+      // Clear the banner delay timer to prevent setState on unmounted component
+      if (bannerTimerRef.current !== null) {
+        clearTimeout(bannerTimerRef.current);
+      }
     };
   }, []);
 

@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lat = parseFloat(searchParams.get('lat') || '13.7563');
     const lng = parseFloat(searchParams.get('lng') || '100.5018');
-    const radius = parseInt(searchParams.get('radius') || '10000');
+    // Clamp radius between 500 m and 50 km to prevent abuse
+    const radius = Math.min(Math.max(parseInt(searchParams.get('radius') || '') || 10000, 500), 50000);
 
     // Fetch from Google Places
     const places = await searchNearbyStations(lat, lng, radius);
@@ -66,6 +67,20 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'กรุณากรอกข้อมูลให้ครบ' },
         { status: 400 }
       );
+    }
+
+    // Input length validation
+    if (typeof stationName === 'string' && stationName.length > 255) {
+      return NextResponse.json({ success: false, error: 'stationName ยาวเกินไป (สูงสุด 255 ตัวอักษร)' }, { status: 400 });
+    }
+    if (typeof reporterName === 'string' && reporterName.length > 100) {
+      return NextResponse.json({ success: false, error: 'reporterName ยาวเกินไป (สูงสุด 100 ตัวอักษร)' }, { status: 400 });
+    }
+    if (note && typeof note === 'string' && note.length > 500) {
+      return NextResponse.json({ success: false, error: 'note ยาวเกินไป (สูงสุด 500 ตัวอักษร)' }, { status: 400 });
+    }
+    if (Array.isArray(fuelReports) && fuelReports.length > 15) {
+      return NextResponse.json({ success: false, error: 'fuelReports มีรายการมากเกินไป (สูงสุด 15 รายการ)' }, { status: 400 });
     }
 
     const report: StationReport = {

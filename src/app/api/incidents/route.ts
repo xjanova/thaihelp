@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Incident, CreateIncidentInput } from '@/types';
+import type { Incident, CreateIncidentInput, IncidentCategory } from '@/types';
+
+const VALID_CATEGORIES: IncidentCategory[] = ['accident', 'flood', 'roadblock', 'checkpoint', 'construction', 'other'];
 
 // In-memory store (replace with DB later)
 const incidentsStore: Incident[] = [
@@ -83,6 +85,20 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Input validation
+    if (!VALID_CATEGORIES.includes(category as IncidentCategory)) {
+      return NextResponse.json(
+        { success: false, error: `category ไม่ถูกต้อง ต้องเป็นหนึ่งใน: ${VALID_CATEGORIES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    if (typeof title === 'string' && title.length > 200) {
+      return NextResponse.json({ success: false, error: 'title ยาวเกินไป (สูงสุด 200 ตัวอักษร)' }, { status: 400 });
+    }
+    if (description && typeof description === 'string' && description.length > 1000) {
+      return NextResponse.json({ success: false, error: 'description ยาวเกินไป (สูงสุด 1000 ตัวอักษร)' }, { status: 400 });
     }
 
     const newIncident: Incident = {

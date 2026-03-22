@@ -8,6 +8,7 @@ import { ReportModal } from '@/components/stations/ReportModal';
 import { StationHero } from '@/components/stations/StationHero';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { RefreshCw, MapPin, Search } from 'lucide-react';
+import { DemoBanner } from '@/components/ui/DemoBanner';
 import type { GasStation } from '@/types';
 
 export default function StationsPage() {
@@ -70,6 +71,9 @@ export default function StationsPage() {
       <main className="pt-14 pb-20">
         {/* Hero Section */}
         <StationHero totalStations={stations.length} totalReports={stations.reduce((sum, s) => sum + (s.totalReports || 0), 0)} />
+
+        {/* Demo Banner — show when using mock data */}
+        <DemoBanner message="ปั๊มน้ำมันแสดงข้อมูลตัวอย่าง — ข้อมูลจริงจะแสดงเมื่อใส่ Google Maps API Key" />
 
         {/* Search + Controls */}
         <div className="sticky top-14 z-40 glass px-4 py-3">

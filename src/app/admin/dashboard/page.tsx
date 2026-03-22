@@ -6,6 +6,7 @@ import {
   Fuel, AlertTriangle, Users, FileText,
   RefreshCw, Clock, ThumbsUp, Activity, TrendingUp
 } from 'lucide-react';
+import { DemoBanner } from '@/components/ui/DemoBanner';
 
 interface Stats {
   totalStations: number;
@@ -50,6 +51,8 @@ export default function AdminDashboard() {
             รีเฟรช
           </button>
         </div>
+
+        <DemoBanner message="ข้อมูลทั้งหมดเป็นตัวอย่าง (Demo) — จะเชื่อมฐานข้อมูลจริงเมื่อพร้อม" />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

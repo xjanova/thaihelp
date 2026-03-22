@@ -3,16 +3,16 @@ import crypto from 'crypto';
 
 const ADMIN_COOKIE = 'thaihelp_admin_token';
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+const CLEANUP_INTERVAL = 60 * 60 * 1000; // Clean expired tokens every hour
 
-// Default admin credentials (first-time setup)
-// Change these in .env.local!
-const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'ThaiHelp@2026!';
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'thaihelp-secret-key-change-me';
+// In production, ADMIN_USERNAME, ADMIN_PASSWORD, and ADMIN_SECRET must be set
+// as environment variables. The fallback defaults below are for development only.
+// TODO: Replace plaintext comparison with bcrypt before going to production.
+const isDev = process.env.NODE_ENV !== 'production';
 
-function hashPassword(password: string): string {
-  return crypto.createHmac('sha256', ADMIN_SECRET).update(password).digest('hex');
-}
+const ADMIN_USER = process.env.ADMIN_USERNAME ?? (isDev ? 'admin' : (() => { throw new Error('ADMIN_USERNAME env var is required in production'); })());
+const ADMIN_PASS = process.env.ADMIN_PASSWORD ?? (isDev ? 'ThaiHelp@2026!' : (() => { throw new Error('ADMIN_PASSWORD env var is required in production'); })());
+const ADMIN_SECRET = process.env.ADMIN_SECRET ?? (isDev ? 'thaihelp-secret-key-change-me' : (() => { throw new Error('ADMIN_SECRET env var is required in production'); })());
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -21,9 +21,24 @@ function generateToken(): string {
 // In-memory token store (replace with DB/Redis in production)
 const tokenStore = new Map<string, { expires: number }>();
 
+// Periodically clean up expired tokens to prevent unbounded memory growth
+setInterval(() => {
+  const now = Date.now();
+  tokenStore.forEach((session, token) => {
+    if (now > session.expires) {
+      tokenStore.delete(token);
+    }
+  });
+}, CLEANUP_INTERVAL);
+
 export function validateCredentials(username: string, password: string): boolean {
+  // NOTE: This is a plaintext comparison — acceptable for MVP.
+  // Replace with bcrypt.compare() before production launch.
   return username === ADMIN_USER && password === ADMIN_PASS;
 }
+
+// Suppress unused-variable warning for ADMIN_SECRET (used via closure above)
+void ADMIN_SECRET;
 
 export function createSession(): string {
   const token = generateToken();

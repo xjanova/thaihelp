@@ -24,6 +24,7 @@ export function ReportModal({ station, onClose, onSubmit }: ReportModalProps) {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { isListening, transcript, listen, stopListening, sayText } = useSpeech();
 
   const toggleFuel = (fuelType: FuelType, status: FuelStatus) => {
@@ -91,6 +92,7 @@ export function ReportModal({ station, onClose, onSubmit }: ReportModalProps) {
   const handleSubmit = async () => {
     if (!reporterName.trim() || fuelReports.length === 0) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch('/api/stations', {
         method: 'POST',
@@ -105,8 +107,13 @@ export function ReportModal({ station, onClose, onSubmit }: ReportModalProps) {
         setSubmitted(true);
         sayText('ขอบคุณที่รายงานค่ะ');
         setTimeout(() => onSubmit(), 2000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSubmitError(data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
       }
-    } catch { /* ignore */ } finally { setSubmitting(false); }
+    } catch {
+      setSubmitError('ไม่สามารถส่งข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+    } finally { setSubmitting(false); }
   };
 
   if (submitted) {
@@ -231,6 +238,13 @@ export function ReportModal({ station, onClose, onSubmit }: ReportModalProps) {
               rows={2}
               className="w-full metal-input rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none resize-none" />
           </div>
+
+          {/* Submit error */}
+          {submitError && (
+            <div className="metal-panel rounded-xl p-3 border-red-500/20 bg-red-500/5">
+              <p className="text-sm text-red-400 text-center">{submitError}</p>
+            </div>
+          )}
 
           {/* Submit */}
           <button onClick={handleSubmit}
