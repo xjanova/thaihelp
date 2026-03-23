@@ -38,8 +38,8 @@ export function speak(text: string, onEnd?: () => void): void {
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'th-TH';
-  utterance.rate = 1.05;  // Slightly faster — น้องหญิง style
-  utterance.pitch = 1.4;  // Higher pitch — child/girl voice
+  utterance.rate = 0.9;   // พูดช้าลงนิดหน่อย — ฟังสบายกว่า
+  utterance.pitch = 1.15;  // เสียงสาวๆ — ไม่สูงเหมือนเด็ก
 
   if (thaiVoice) {
     utterance.voice = thaiVoice;
