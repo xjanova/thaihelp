@@ -21,7 +21,7 @@ import type { GasStation } from '@/types';
 export default function HomePage() {
   const { user } = useAuth();
   const { position, loading: geoLoading } = useGeolocation();
-  const { stations, incidents, loading, lastUpdated, refresh } = useMapData(position);
+  const { stations, incidents, oilProducers, loading, lastUpdated, refresh } = useMapData(position);
   const { isListening, listen, stopListening, transcript } = useSpeech();
 
   const [mounted, setMounted] = useState(false);
@@ -47,10 +47,11 @@ export default function HomePage() {
           greeting = 'สวัสดีตอนเย็นค่ะ! น้องหญิงอยู่ตรงนี้เลย พี่ต้องการอะไรพูดได้เลยนะคะ! ';
         }
         if (user) {
-          greeting += `พี่${user.nickname} เดินทางปลอดภัยนะคะ!`;
+          greeting += `พี่${user.nickname} เดินทางปลอดภัยนะคะ! `;
         } else {
-          greeting += 'กดปุ่มไมค์สีส้มเพื่อสั่งด้วยเสียงได้เลยค่ะ!';
+          greeting += 'กดปุ่มไมค์สีส้มเพื่อสั่งด้วยเสียงได้เลยค่ะ! ';
         }
+        greeting += 'ใหม่ของวันนี้ค่ะ! ถ้าคุณผลิตน้ำมันเชื้อเพลิงเอง มาลงทะเบียนให้เพื่อนๆ หาคุณเจอค่ะ พร้อมนำราคาใส่ในระบบราคา น้องหญิงจะได้แนะนำได้ค่ะ';
         speak(greeting);
         setGreeted(true);
       }, 1500);
@@ -72,8 +73,10 @@ export default function HomePage() {
         <MapView
           stations={stations}
           incidents={incidents}
+          oilProducers={oilProducers}
           showStations={mapFilter === 'all' || mapFilter === 'stations'}
           showIncidents={mapFilter === 'all' || mapFilter === 'incidents'}
+          showOilProducers={mapFilter === 'all' || mapFilter === 'oil_producers'}
           onStationReport={(station) => setReportStation(station)}
         />
 
@@ -97,8 +100,8 @@ export default function HomePage() {
                     <p className="text-sm font-medium text-orange-400 mb-1">น้องหญิง AI</p>
                     <p className="text-sm text-slate-300 leading-relaxed">
                       {mounted && user
-                        ? `สวัสดีค่ะพี่${user.nickname}! หนูน้องหญิง พร้อมช่วยเหลือการเดินทางจ้า!`
-                        : 'สวัสดีค่ะ! หนูน้องหญิง AI ประจำแอป ThaiHelp พร้อมช่วยเหลือพี่ๆ นักเดินทางค่ะ!'}
+                        ? `สวัสดีค่ะพี่${user.nickname}! หนูน้องหญิง พร้อมช่วยเหลือการเดินทางจ้า! ถ้าผลิตน้ำมันเชื้อเพลิงเอง มาลงทะเบียนเลยนะคะ!`
+                        : 'สวัสดีค่ะ! หนูน้องหญิง AI ประจำแอป ThaiHelp ถ้าคุณผลิตน้ำมันเชื้อเพลิงเอง มาลงทะเบียนให้เพื่อนๆ หาคุณเจอค่ะ!'}
                     </p>
                   </div>
                 </div>
@@ -124,12 +127,22 @@ export default function HomePage() {
                   <span className="text-sm font-medium text-white">AI ช่วย</span>
                   <span className="text-[10px] text-slate-500">สั่งด้วยเสียง</span>
                 </Link>
-                <button onClick={() => setShowWelcome(false)} className="flex flex-col items-center gap-2 bg-gradient-to-br from-emerald-600/20 to-emerald-800/10 border border-emerald-500/20 rounded-2xl p-4 hover:border-emerald-400/40 transition-all group">
-                  <ChevronRight className="w-8 h-8 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+                <button onClick={() => setShowWelcome(false)} className="flex flex-col items-center gap-2 bg-gradient-to-br from-cyan-600/20 to-cyan-800/10 border border-cyan-500/20 rounded-2xl p-4 hover:border-cyan-400/40 transition-all group">
+                  <ChevronRight className="w-8 h-8 text-cyan-400 group-hover:translate-x-1 transition-transform" />
                   <span className="text-sm font-medium text-white">ดูแผนที่</span>
                   <span className="text-[10px] text-slate-500">เริ่มใช้งาน</span>
                 </button>
               </div>
+
+              {/* Oil Producer Registration Banner */}
+              <Link href="/register-oil" className="flex items-center gap-3 bg-gradient-to-r from-orange-600/20 to-amber-800/10 border border-orange-500/20 rounded-2xl p-4 hover:border-orange-400/40 transition-all group">
+                <Fuel className="w-8 h-8 text-orange-400 group-hover:scale-110 transition-transform shrink-0" />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-white block">ลงทะเบียนผู้ผลิตน้ำมัน</span>
+                  <span className="text-[10px] text-slate-500">ไบโอดีเซล • น้ำมันพืชใช้แล้ว • เอทานอล • ดีเซลผสม</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-orange-400/50 group-hover:translate-x-1 transition-transform" />
+              </Link>
 
               <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
                 <Code2 className="w-3 h-3" />
@@ -148,6 +161,7 @@ export default function HomePage() {
               onChange={setMapFilter}
               stationCount={stations.length}
               incidentCount={incidents.length}
+              oilProducerCount={oilProducers.length}
               lastUpdated={lastUpdated}
               onRefresh={handleRefresh}
               refreshing={refreshing}

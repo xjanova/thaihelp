@@ -2,17 +2,20 @@
 
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import type { GasStation, Incident } from '@/types';
+import type { GasStation, Incident, OilProducer } from '@/types';
 import { StationMarker } from './StationMarker';
 import { IncidentMarker } from './IncidentMarker';
+import { OilProducerMarker } from './OilProducerMarker';
 
 const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 interface MapViewProps {
   stations?: GasStation[];
   incidents?: Incident[];
+  oilProducers?: OilProducer[];
   showStations?: boolean;
   showIncidents?: boolean;
+  showOilProducers?: boolean;
   onStationReport?: (station: GasStation) => void;
   children?: React.ReactNode;
 }
@@ -20,8 +23,10 @@ interface MapViewProps {
 export function MapView({
   stations = [],
   incidents = [],
+  oilProducers = [],
   showStations = true,
   showIncidents = true,
+  showOilProducers = true,
   onStationReport,
   children,
 }: MapViewProps) {
@@ -78,6 +83,12 @@ export function MapView({
         {showIncidents &&
           incidents.map((incident) => (
             <IncidentMarker key={incident.id} incident={incident} />
+          ))}
+
+        {/* Oil producer markers */}
+        {showOilProducers &&
+          oilProducers.map((producer) => (
+            <OilProducerMarker key={producer.id} producer={producer} />
           ))}
 
         {children}

@@ -85,6 +85,31 @@ const CREATE_TABLES = [
     INDEX idx_action (action),
     INDEX idx_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  `CREATE TABLE IF NOT EXISTS oil_producers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    shop_name VARCHAR(255) NOT NULL,
+    shop_category ENUM('fuel','food','product','service') NOT NULL DEFAULT 'fuel',
+    oil_type ENUM('biodiesel','used_cooking_oil','palm_oil_fuel','ethanol','diesel_blend','gasohol_blend','bio_gas','other') NOT NULL,
+    oil_type_custom VARCHAR(255),
+    price DECIMAL(8,2) NOT NULL,
+    price_unit VARCHAR(50) DEFAULT 'บาท/ลิตร',
+    latitude DOUBLE NOT NULL,
+    longitude DOUBLE NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    logo_url VARCHAR(500),
+    owner_name VARCHAR(100) NOT NULL,
+    owner_email VARCHAR(255),
+    description TEXT,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_active (is_active),
+    INDEX idx_category (shop_category),
+    INDEX idx_location (latitude, longitude),
+    INDEX idx_oil_type (oil_type),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 const DEFAULT_SETTINGS = [
@@ -110,7 +135,7 @@ export async function GET() {
   try {
     const tables = await query('SHOW TABLES');
     const tableNames = tables.map((t) => Object.values(t)[0] as string);
-    const requiredTables = ['users', 'incidents', 'station_reports', 'fuel_reports', 'incident_votes', 'site_settings', 'admin_logs'];
+    const requiredTables = ['users', 'incidents', 'station_reports', 'fuel_reports', 'incident_votes', 'site_settings', 'admin_logs', 'oil_producers'];
     const missingTables = requiredTables.filter((t) => !tableNames.includes(t));
 
     let setupCompleted = false;

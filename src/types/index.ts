@@ -133,6 +133,93 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+// === Local Producers (ผู้ผลิตท้องถิ่น) ===
+
+// หมวดหมู่ร้านค้า — รองรับขยายในอนาคต
+export type ShopCategory = 'fuel' | 'food' | 'product' | 'service';
+
+export interface ShopCategoryInfo {
+  key: ShopCategory;
+  label: string;
+  labelEn: string;
+  color: string;
+  emoji: string;
+}
+
+export const SHOP_CATEGORIES: ShopCategoryInfo[] = [
+  { key: 'fuel', label: 'น้ำมันเชื้อเพลิง', labelEn: 'Fuel', color: '#f97316', emoji: '⛽' },
+  { key: 'food', label: 'อาหาร', labelEn: 'Food', color: '#22c55e', emoji: '🍜' },
+  { key: 'product', label: 'ผลิตภัณฑ์', labelEn: 'Product', color: '#8b5cf6', emoji: '📦' },
+  { key: 'service', label: 'บริการ', labelEn: 'Service', color: '#3b82f6', emoji: '🔧' },
+];
+
+// ชนิดน้ำมันเชื้อเพลิงแบบทำเอง
+export type OilType =
+  | 'biodiesel'
+  | 'used_cooking_oil'
+  | 'palm_oil_fuel'
+  | 'ethanol'
+  | 'diesel_blend'
+  | 'gasohol_blend'
+  | 'bio_gas'
+  | 'other';
+
+export interface OilTypeInfo {
+  key: OilType;
+  label: string;
+  labelEn: string;
+  color: string;
+  emoji: string;
+}
+
+export const OIL_TYPES: OilTypeInfo[] = [
+  { key: 'biodiesel', label: 'ไบโอดีเซล', labelEn: 'Biodiesel', color: '#16a34a', emoji: '🌿' },
+  { key: 'used_cooking_oil', label: 'น้ำมันพืชใช้แล้ว', labelEn: 'Used Cooking Oil', color: '#b45309', emoji: '🫗' },
+  { key: 'palm_oil_fuel', label: 'น้ำมันปาล์มเชื้อเพลิง', labelEn: 'Palm Oil Fuel', color: '#854d0e', emoji: '🌴' },
+  { key: 'ethanol', label: 'เอทานอล', labelEn: 'Ethanol', color: '#0d9488', emoji: '🧪' },
+  { key: 'diesel_blend', label: 'ดีเซลผสม', labelEn: 'Diesel Blend', color: '#3b82f6', emoji: '⛽' },
+  { key: 'gasohol_blend', label: 'แก๊สโซฮอล์ผสม', labelEn: 'Gasohol Blend', color: '#ef4444', emoji: '🔴' },
+  { key: 'bio_gas', label: 'ก๊าซชีวภาพ', labelEn: 'Bio Gas', color: '#8b5cf6', emoji: '💨' },
+  { key: 'other', label: 'อื่นๆ', labelEn: 'Other', color: '#6b7280', emoji: '🛢️' },
+];
+
+export interface OilProducer {
+  id: number;
+  shopName: string;
+  shopCategory: ShopCategory;
+  oilType: OilType;
+  oilTypeCustom?: string;
+  price: number;
+  priceUnit?: string;
+  latitude: number;
+  longitude: number;
+  phone: string;
+  logoUrl?: string;
+  ownerName: string;
+  ownerEmail?: string;
+  description?: string;
+  isActive: boolean;
+  distance?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOilProducerInput {
+  shopName: string;
+  shopCategory?: ShopCategory;
+  oilType: OilType;
+  oilTypeCustom?: string;
+  price: number;
+  priceUnit?: string;
+  latitude: number;
+  longitude: number;
+  phone: string;
+  logoUrl?: string;
+  ownerName: string;
+  ownerEmail?: string;
+  description?: string;
+}
+
 // === API Response ===
 export interface ApiResponse<T> {
   success: boolean;

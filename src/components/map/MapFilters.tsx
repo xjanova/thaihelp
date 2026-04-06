@@ -1,15 +1,16 @@
 'use client';
 
-import { Fuel, AlertTriangle, RefreshCw, Clock } from 'lucide-react';
+import { Fuel, AlertTriangle, RefreshCw, Clock, Leaf } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type MapFilter = 'all' | 'stations' | 'incidents';
+export type MapFilter = 'all' | 'stations' | 'incidents' | 'oil_producers';
 
 interface MapFiltersProps {
   filter: MapFilter;
   onChange: (filter: MapFilter) => void;
   stationCount: number;
   incidentCount: number;
+  oilProducerCount: number;
   lastUpdated: Date | null;
   onRefresh: () => void;
   refreshing: boolean;
@@ -20,14 +21,16 @@ export function MapFilters({
   onChange,
   stationCount,
   incidentCount,
+  oilProducerCount,
   lastUpdated,
   onRefresh,
   refreshing,
 }: MapFiltersProps) {
   const filters: { value: MapFilter; label: string; icon: typeof Fuel; count: number; color: string }[] = [
-    { value: 'all', label: 'ทั้งหมด', icon: RefreshCw, count: stationCount + incidentCount, color: 'orange' },
+    { value: 'all', label: 'ทั้งหมด', icon: RefreshCw, count: stationCount + incidentCount + oilProducerCount, color: 'orange' },
     { value: 'stations', label: 'ปั๊ม', icon: Fuel, count: stationCount, color: 'blue' },
     { value: 'incidents', label: 'เหตุการณ์', icon: AlertTriangle, count: incidentCount, color: 'red' },
+    { value: 'oil_producers', label: 'น้ำมันทำเอง', icon: Leaf, count: oilProducerCount, color: 'green' },
   ];
 
   return (

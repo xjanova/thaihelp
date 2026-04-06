@@ -87,6 +87,12 @@ export function VoiceAssistant({ stations = [] }: VoiceAssistantProps) {
           router.push('/stations');
         }
         break;
+      case 'REGISTER_OIL':
+        router.push('/register-oil');
+        break;
+      case 'FIND_OIL':
+        router.push('/');
+        break;
       case 'HELP':
         setShowHelp(true);
         break;
